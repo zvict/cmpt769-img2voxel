@@ -146,7 +146,8 @@ def rotate_point_cloud_align_z_axis(pcd, plane, original_pcd=None, visualize=Fal
     # rotate the point cloud
     points_before_rotation = copy.deepcopy(np.asarray(pcd.points))
     pcd.rotate(R, center=(0, 0, 0))
-    o3d.visualization.draw_geometries([pcd, original_pcd])
+    if original_pcd is not None:
+        o3d.visualization.draw_geometries([pcd, original_pcd])
 
     if visualize:
         # rerotate the point cloud back to the original position
@@ -183,10 +184,50 @@ def get_cuboid_for_each_plane(pcd, visualize=False):
     cuboid.translate(center_inner - cuboid_center)
     if visualize:
         o3d.visualization.draw_geometries([pcd, cuboid])
+        obb = pcd.get_oriented_bounding_box()
+        obb.color = (1, 0, 0)
+        o3d.visualization.draw_geometries([pcd, obb])
+
     return cuboid
 
 
-def o3d_pcl_multi_plane_seg(pcd, num_plane=3, thr=0.01):
+def get_sub_sections_in_pcd(pcd, visualize=False):
+    labels = np.array(pcd.cluster_dbscan(eps=0.003, min_points=10, print_progress=True))
+    max_label = labels.max()
+    print(f"point cloud has {max_label + 1} clusters")
+    colors = plt.get_cmap("tab20")(labels / (max_label if max_label > 0 else 1))
+    colors[labels < 0] = 0
+    pcd.colors = o3d.utility.Vector3dVector(colors[:, :3])
+
+    # create a list of point clouds for each cluster
+    pcds = []
+    for i in range(max_label + 1):
+        pcds.append(pcd.select_by_index(np.where(labels == i)[0]))
+    if visualize:
+        o3d.visualization.draw_geometries(pcds)
+
+    return pcds
+
+
+def get_cuboids_for_each_plane(pcd, plane_model, visualize=False):
+    results = []
+    for i in pcd:
+        # 1: rotate the inlier cloud to align with z-axis
+        inlier_cloud, R = rotate_point_cloud_align_z_axis(pcd=i, plane=plane_model, original_pcd=None, visualize=False)
+
+        # 2: fit a cuboid to the inlier cloud
+        cuboid = get_cuboid_for_each_plane(i, visualize=visualize)
+
+        # 3: rotate the cuboid back to the original position
+        cuboid.rotate(R.T, center=(0, 0, 0))
+        if visualize:
+            o3d.visualization.draw_geometries([cuboid, pcd])
+        results.append(cuboid)
+    return results
+
+
+def o3d_pcl_multi_plane_seg(pcd, num_plane=3, thr=0.01, visualize=False):
+    results = []
     for i in range(num_plane):
         plane_model, inliers = pcd.segment_plane(distance_threshold=thr, ransac_n=3, num_iterations=1000)
         [a, b, c, d] = plane_model
@@ -194,20 +235,24 @@ def o3d_pcl_multi_plane_seg(pcd, num_plane=3, thr=0.01):
         inlier_cloud = pcd.select_by_index(inliers)
         inlier_cloud.paint_uniform_color([1.0, 0, 0])
         outlier_cloud = pcd.select_by_index(inliers, invert=True)
-        o3d.visualization.draw_geometries([inlier_cloud, outlier_cloud])
+        if visualize:
+            o3d.visualization.draw_geometries([inlier_cloud, outlier_cloud])
 
-        # 1: rotate the inlier cloud to align with z-axis
-        inlier_cloud, R = rotate_point_cloud_align_z_axis(pcd=inlier_cloud, plane=plane_model, original_pcd=pcd, visualize=False)
+        # use DBSCAN to cluster the inlier cloud
+        inlier_cloud = get_sub_sections_in_pcd(inlier_cloud, visualize=True)
 
-        # 2: fit a cuboid to the inlier cloud
-        cuboid = get_cuboid_for_each_plane(inlier_cloud, visualize=True)
-
-        # 3: rotate the cuboid back to the original position
-        cuboid.rotate(R.T, center=(0, 0, 0))
-        o3d.visualization.draw_geometries([cuboid, pcd])
+        # fit a cuboid to each cluster
+        cuboids = get_cuboids_for_each_plane(inlier_cloud, plane_model, visualize=False)
+        results.extend(cuboids)
 
         # update the point cloud
         pcd = outlier_cloud
+
+    colors = plt.get_cmap("tab20")
+    for j in range(len(results)):
+        results[j].paint_uniform_color(colors.colors[(j + 1) % 20])
+    results.append(pcd)
+    o3d.visualization.draw_geometries(results)
 
 
 if __name__ == '__main__':
@@ -247,7 +292,7 @@ if __name__ == '__main__':
     visualize_pcl(pcl)
 
     # o3d_pcl_plane_seg(pcl)
-    o3d_pcl_multi_plane_seg(pcl, num_plane=5, thr=0.002)
+    o3d_pcl_multi_plane_seg(pcl, num_plane=9, thr=0.002)
 
     # K = np.array([[FX_DEPTH, 0, CX_DEPTH], [0, FY_DEPTH, CY_DEPTH], [0, 0, 1]])
     K = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
