@@ -1,10 +1,14 @@
+import copy
+
 import numpy as np
-import matplotlib.pyplot as plt
 import open3d as o3d
 import cv2
 import os
 from depth2normal import get_surface_normal_by_depth, get_normal_map_by_point_cloud
 from seg import img_seg_slic
+import seaborn as sns
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 # FX_DEPTH = 500
 # FY_DEPTH = 500
@@ -99,6 +103,27 @@ def o3d_pcl_plane_seg(pcd):
     return plane_model, inliers
 
 
+def plot_point_clouds_cuboids(list_point_clouds, list_cuboids, labels=None, title=None):
+    # plot each point cloud with a different color using seaborn
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    colors = sns.color_palette("hls", len(list_point_clouds))
+    for i, pcd in enumerate(list_point_clouds):
+        ax.scatter(pcd[:, 0], pcd[:, 1], pcd[:, 2], color=colors[i], s=10)
+        if labels is not None:
+            plt.legend(labels)
+    # plot each cuboid: 8 points
+    for cuboid in list_cuboids:
+        ax.scatter(cuboid[:, 0], cuboid[:, 1], cuboid[:, 2], color='black', s=100)
+
+    plt.title(title)
+    # show x, y, z axis
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    plt.show(block=True)
+
+
 def rotate_point_cloud_align_z_axis(pcd, plane, original_pcd=None, visualize=False):
     [a, b, c, d] = plane
     # get the normal vector of the plane
@@ -119,24 +144,46 @@ def rotate_point_cloud_align_z_axis(pcd, plane, original_pcd=None, visualize=Fal
                   [axis[2] * axis[0] * (1 - np.cos(angle)) - axis[1] * np.sin(angle), axis[2] * axis[1] * (1 - np.cos(angle)) + axis[0] * np.sin(angle), np.cos(angle) + axis[2] ** 2 * (1 - np.cos(angle))]])
 
     # rotate the point cloud
-    points_before_rotation = np.asarray(pcd.points)
+    points_before_rotation = copy.deepcopy(np.asarray(pcd.points))
     pcd.rotate(R, center=(0, 0, 0))
+    o3d.visualization.draw_geometries([pcd, original_pcd])
 
     if visualize:
-        # visualize the rotated point cloud
-        o3d.visualization.draw_geometries([pcd, original_pcd])
-
         # rerotate the point cloud back to the original position
         pcd.rotate(R.T, center=(0, 0, 0))
-        # visualize the rotated point cloud
-        o3d.visualization.draw_geometries([pcd, original_pcd])
         points_after_rotation = np.asarray(pcd.points)
+        plot_point_clouds_cuboids([points_before_rotation, points_after_rotation], [], labels=["Rotated", "Original"], title="Point Cloud After Rotation")
 
         # compute the error between the original point cloud and the rotated point cloud
         error = np.sum(np.abs(points_before_rotation - points_after_rotation))
         print("Error: ", error)
 
-    return pcd
+    return pcd, R
+
+
+def get_cuboid_for_each_plane(pcd, visualize=False):
+    # project the points inside the inlier cloud to the xy-plane
+    points = np.asarray(pcd.points)
+    projected_xy = points[:, 0:2]
+
+    # plot_point_clouds([np.stack((projected_xy[:, 0], projected_xy[:, 1], np.zeros(projected_xy.shape[0])), axis=1), points], labels=["Projected"], title="Projected Point Cloud")
+
+    min_x, max_x = np.min(projected_xy[:, 0]), np.max(projected_xy[:, 0])
+    min_y, max_y = np.min(projected_xy[:, 1]), np.max(projected_xy[:, 1])
+    min_z, max_z = np.min(points[:, 2]), np.max(points[:, 2])
+
+    length = max_x - min_x
+    width = max_y - min_y
+    height = max_z - min_z
+    cuboid = o3d.geometry.TriangleMesh.create_box(length, width, height)
+
+    # move the center of the cuboid to the center of the inlier cloud
+    center_inner = np.array([min_x + length / 2.0, min_y + width / 2.0, min_z + height / 2.0])
+    cuboid_center = cuboid.get_center()
+    cuboid.translate(center_inner - cuboid_center)
+    if visualize:
+        o3d.visualization.draw_geometries([pcd, cuboid])
+    return cuboid
 
 
 def o3d_pcl_multi_plane_seg(pcd, num_plane=3, thr=0.01):
@@ -148,50 +195,19 @@ def o3d_pcl_multi_plane_seg(pcd, num_plane=3, thr=0.01):
         inlier_cloud.paint_uniform_color([1.0, 0, 0])
         outlier_cloud = pcd.select_by_index(inliers, invert=True)
         o3d.visualization.draw_geometries([inlier_cloud, outlier_cloud])
+
+        # 1: rotate the inlier cloud to align with z-axis
+        inlier_cloud, R = rotate_point_cloud_align_z_axis(pcd=inlier_cloud, plane=plane_model, original_pcd=pcd, visualize=False)
+
+        # 2: fit a cuboid to the inlier cloud
+        cuboid = get_cuboid_for_each_plane(inlier_cloud, visualize=True)
+
+        # 3: rotate the cuboid back to the original position
+        cuboid.rotate(R.T, center=(0, 0, 0))
+        o3d.visualization.draw_geometries([cuboid, pcd])
+
+        # update the point cloud
         pcd = outlier_cloud
-
-        x = 0
-
-
-# def o3d_get_cuboids_from_pcd(pcd, num_plane=3, ransac_n=3, dist_threshold=0.01, max_iterations=1000):
-#     # pcd = o3d.geometry.PointCloud()
-#     # pcd.points = o3d.utility.Vector3dVector(pcl)
-#
-#     for i in range(num_plane):
-#
-
-# Fit cuboids to each plane
-#     cuboids = []
-#
-#     # Extract the plane normal vector
-#     normal_vector = np.array(plane_model[0:3])
-#
-#     # Orient the plane so that its normal vector is aligned with the z-axis
-#     R = o3d.geometry.get_rotation_matrix_from_xyz(normal_vector)
-#     pcd.rotate(R, center=normal_vector)
-#
-#     # Project points onto the plane and compute the 2D bounding box
-#     projected_points = np.delete(pcd.points, inliers[i], axis=0) - plane_model[0:3]
-#     x_min, y_min = np.min(projected_points[:, [0, 1]], axis=0)
-#     x_max, y_max = np.max(projected_points[:, [0, 1]], axis=0)
-#
-#     # Extrude the 2D bounding box to create a cuboid with random orientation
-#     x_extent = x_max - x_min
-#     y_extent = y_max - y_min
-#     z_extent = np.max(pcd.points[:, 2]) - np.min(pcd.points[:, 2])
-#     cuboid = o3d.geometry.OrientedBoundingBox(center=plane_model[0:3],
-#                                               extent=np.array([x_extent, y_extent, z_extent]))
-#     cuboid.color = np.array([0.1, 0.1, 0.8])
-#     R_cuboid = o3d.geometry.get_rotation_matrix_from_xyz(np.random.uniform(-np.pi, np.pi, size=3))
-#     cuboid.rotate(R_cuboid, center=plane_model[0:3])
-#     cuboids.append(cuboid)
-#
-#     # Remove the points that are inside the cuboid
-#     outlier_cloud = pcd.select_by_index(inliers, invert=True)
-#     pcd = outlier_cloud
-#
-# # Visualize the point cloud and the fitted cuboids
-# o3d.visualization.draw_geometries([pcd] + cuboids)
 
 
 if __name__ == '__main__':
