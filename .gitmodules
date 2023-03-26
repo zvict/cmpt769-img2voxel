@@ -1,0 +1,3 @@
+[submodule "intrinsic_estimation"]
+	path = intrinsic_estimation
+	url = https://github.com/towardsautonomy/cam_intrinsic_calibration_single_image.git
