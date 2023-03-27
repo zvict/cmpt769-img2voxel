@@ -3,16 +3,15 @@
 
 
 class Node:
-    def __init__(self, norm, plane_coord, points):
-        """
-        :param norm: normal vector of the plane
-        :param plane_coord: coordinates of the plane
-        :param points: points of the plane
-        """
+    def __init__(self, points, normals, labels, colors, plane_points, plane_normals, projected_points):
         self.connected_nodes = []
-        self.norm = norm
-        self.plane_coord = plane_coord
         self.points = points
+        self.norm = normals
+        self.labels = labels
+        self.colors = colors
+        self.plane_points = plane_points
+        self.plane_normals = plane_normals
+        self.projected_points = projected_points
 
     def add_connection(self, node):
         self.connected_nodes.append(node)
@@ -59,4 +58,21 @@ class Graph:
         return node.connected_nodes
 
 
-def graph_builder():
+def graph_builder(clusters):
+    """
+    :param clusters: clusters is a dictionary containing the information of each cluster. The keys
+    are "points", "normals", "labels", "colors", "plane_points", "plane_normals", "projected_points".
+    We create a graph object and the nodes would be each item in the clusters dictionary.
+    :return: a graph object
+    """
+    graph = Graph()
+    for i in range(len(clusters["points"])):
+        node = Node(points=clusters["points"][i],
+                    normals=clusters["normals"][i],
+                    labels=clusters["labels"][i],
+                    colors=clusters["colors"][i],
+                    plane_points=clusters["plane_points"][i],
+                    plane_normals=clusters["plane_normals"][i],
+                    projected_points=clusters["projected_points"][i])
+        graph.add_node(node)
+    return graph
