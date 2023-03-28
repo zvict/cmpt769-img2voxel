@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 import open3d as o3d
+import torch
 import cv2
 import os
 import skimage
@@ -278,6 +279,8 @@ for v in range(all_labels.min(), all_labels.max() + 1):
     all_clusters["plane_points"].append(cur_plane_point)
     all_clusters["plane_normals"].append(cur_plane_normal)
     all_clusters["projected_points"].append(cur_proj_points)
+
+torch.save(all_clusters, "nyu15-all_clusters.pth")
 
 all_planes = np.concatenate(all_planes, axis=0)
 
