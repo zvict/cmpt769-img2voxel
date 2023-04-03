@@ -114,7 +114,7 @@ def sk_spectral_clustering(feat, n_clusters=2):
     return labels
 
 
-def get_all_planes(depth_path="../data/NYU-Depth/15.png", normal_path="seg-nyu15-normal1-sigma6.png"):
+def get_all_planes(depth_path="../data/NYU-Depth/15.png", normal_path="../data/seg-nyu15-normal1-sigma6.png"):
     depth = iio.imread(depth_path)
     normal = iio.imread(normal_path)
 
@@ -282,4 +282,6 @@ def get_all_planes(depth_path="../data/NYU-Depth/15.png", normal_path="seg-nyu15
     # pcl.colors = o3d.utility.Vector3dVector(cmap(labels / labels.max())[:, :3])
     new_pcl.colors = o3d.utility.Vector3dVector(all_colors)
     visualize_pcl(new_pcl)
+    all_clusters['length_max'] = new_pcl.get_axis_aligned_bounding_box().get_extent().max()
+    # finding the longest edge of the bounding box
     return all_clusters

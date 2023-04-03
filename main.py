@@ -124,11 +124,14 @@ def plot_point_clouds_cuboids(list_point_clouds, list_cuboids, labels=None, titl
     plt.show(block=True)
 
 
-def rotate_point_cloud_align_z_axis(pcd, plane, original_pcd=None, visualize=False):
-    [a, b, c, d] = plane
-    # get the normal vector of the plane
-    normal = np.array([a, b, c])
-    normal = normal / np.linalg.norm(normal)
+def rotate_point_cloud_align_z_axis(pcd, plane=None, plane_normal=None, original_pcd=None, visualize=False):
+    if plane_normal is None:
+        [a, b, c, d] = plane
+        # get the normal vector of the plane
+        normal = np.array([a, b, c])
+        normal = normal / np.linalg.norm(normal)
+    else:
+        normal = plane_normal
 
     # we need to first Compute the angle between the normal vector and the z-axis (0, 0, 1)
     angle = np.arccos(np.dot(normal, np.array([0, 0, 1])))
