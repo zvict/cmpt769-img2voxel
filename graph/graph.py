@@ -133,11 +133,26 @@ class Graph:
             destination_pcd.points = o3d.utility.Vector3dVector(np.concatenate((np.asarray(destination_pcd.points), node.projected_points), axis=0))
         # draw the connectivity lines
         points = [np.mean(np.asarray(self.nodes[id].projected_points), axis=0)]
+        lines = []
         # add the points of the connected nodes
-        for node in self.nodes[id].connected_nodes:
+        for idx, node in enumerate(self.nodes[id].connected_nodes):
             points.append(np.mean(np.asarray(node.projected_points), axis=0))
-        lines = [[id, n.id] for n in self.nodes[id].connected_nodes]
-        colors = [[1, 0, 0] for i in range(len(lines))]
+            lines.append([0, idx + 1])
+        # add a point along the normal of the node
+        normal_index = len(points)
+        points.append(np.mean(np.asarray(self.nodes[id].projected_points), axis=0) + self.nodes[id].plane_normals * 0.5)
+        for node in self.nodes[id].connected_nodes:
+            points.append(np.mean(np.asarray(node.projected_points), axis=0) + node.plane_normals * 0.5)
+
+        # add the normal lines
+        for i in range(0, normal_index):
+            lines.append([i, i + normal_index])
+
+        colors = [[1, 0, 0] for i in range(normal_index)]
+
+        for i in range(normal_index, len(points)):
+            colors.append([0, 1, 0])
+
         line_set = o3d.geometry.LineSet()
         line_set.points = o3d.utility.Vector3dVector(points)
         line_set.lines = o3d.utility.Vector2iVector(lines)
@@ -157,7 +172,7 @@ class Graph:
             return None
         for connection in self.nodes[node_id].connected_nodes:
             angle = np.arccos(np.dot(self.nodes[node_id].plane_normals, connection.plane_normals))
-            if angle > (np.pi / 2 - threshold) and angle < (np.pi / 2 + threshold):
+            if angle > (np.pi / 2 - threshold) and angle < (np.pi / 2 + threshold): # between 80 and 110 degrees
                 print("Node: ", node_id, "Connection: ", connection.id, "Angle: ", angle)
             else:
                 self.nodes[node_id].connected_nodes.remove(connection)
@@ -289,15 +304,15 @@ def main():
 
     # prune connections
     print("*" * 50)
-    graph.prune_all_connectivity()
+    # graph.prune_all_connectivity()
 
-    # visualize the graph
-    nodes = graph.get_nodes().values()
-
-    for n in nodes:
-        graph.plot_a_node_connectivity(n.id)
-
-    x = 0
+    # # visualize the graph
+    # nodes = graph.get_nodes().values()
+    #
+    # for n in nodes:
+    #     graph.plot_a_node_connectivity(n.id)
+    #
+    # x = 0
 
 
 if __name__ == "__main__":
