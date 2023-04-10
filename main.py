@@ -5,15 +5,14 @@ import open3d as o3d
 import cv2
 import os
 from depth2normal import get_surface_normal_by_depth, get_normal_map_by_point_cloud
-from seg import img_seg_slic
-import seaborn as sns
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+from seg import *
+from utils import *
 
-# FX_DEPTH = 500
-# FY_DEPTH = 500
-# CX_DEPTH = 0
-# CY_DEPTH = 0
+
+# FX_DEPTH = 2000
+# FY_DEPTH = 2000
+# CX_DEPTH = 300
+# CY_DEPTH = 200
 
 FX_DEPTH = 5.8262448167737955e+02
 FY_DEPTH = 5.8269103270988637e+02
@@ -83,8 +82,16 @@ def visualize_pcl(pcd):
         pcd.points = o3d.utility.Vector3dVector(pcl)
     # pcd = o3d.geometry.PointCloud()
     # pcd.points = o3d.utility.Vector3dVector(pcl)
-    # pcd.transform([[1,0,0,0],[0,-1,0,0],[0,0,1,0],[0,0,0,1]])
-    o3d.visualization.draw_geometries([pcd])
+    pcd.transform([[1,0,0,0],[0,-1,0,0],[0,0,1,0],[0,0,0,1]])
+    # o3d.visualization.draw_geometries([pcd])
+    # opt = vis.get_render_option()
+    # opt.show_coordinate_frame = True
+    vis = o3d.visualization.Visualizer()
+    vis.create_window()
+    vis.add_geometry(pcd)
+    opt = vis.get_render_option()
+    opt.show_coordinate_frame = True
+    vis.run()
 
 
 def o3d_pcl_plane_seg(pcd):
@@ -275,53 +282,91 @@ if __name__ == '__main__':
 
     # img = cv2.imread(os.path.join(img_dir, rgb_dir, img_id + '_rgb_lowres.png'))
     # depth = cv2.imread(os.path.join(img_dir, depth_dir, img_id + '_final_midas_v2_o2m_lowres.png'), cv2.IMREAD_ANYDEPTH)
-    # # depth = from_16uc1_to_8uc1(depth)
+    # depth = from_16uc1_to_8uc1(depth)
     # depth = (depth / 256.).astype(np.uint16)
     # cv2.imwrite(os.path.join(img_id + '_final_midas_v2_o2m_lowres.png'), depth)
 
     img = cv2.imread(os.path.join(img_dir, rgb_dir, img_id + '.jpg'))
     depth = cv2.imread(os.path.join(img_dir, depth_dir, img_id + '.png'), cv2.IMREAD_ANYDEPTH)
     depth = from_8uc1_to_16uc1(depth)
+    normal = iio.imread("seg-nyu15-normal1-sigma6.png")
     # cv2.imwrite(os.path.join('15.png'), depth)
 
-    show_image(depth)
-
-    # depth = scale_depth(depth, scale_factor=65535.0)
     # show_image(depth)
 
+    # depth = scale_depth(depth, scale_factor=65535.0)
+    depth = scale_depth(depth, scale_factor=255.0)
+    show_image(depth)
+
     # pcl = pcl_from_depth(depth)
-    pcl = colored_pcl_from_depth(depth, img)
-    # pcl = pcl_from_depth2(depth)
-    visualize_pcl(pcl)
-
+    # pcl = colored_pcl_from_depth(depth, img)
+    # # pcl = pcl_from_depth2(depth)
+    # visualize_pcl(pcl)
     # o3d_pcl_plane_seg(pcl)
-    o3d_pcl_multi_plane_seg(pcl, num_plane=9, thr=0.002)
+    # o3d_pcl_multi_plane_seg(pcl, num_plane=5, thr=0.002)
 
-    # K = np.array([[FX_DEPTH, 0, CX_DEPTH], [0, FY_DEPTH, CY_DEPTH], [0, 0, 1]])
-    K = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+    K = np.array([[FX_DEPTH, 0, CX_DEPTH], [0, FY_DEPTH, CY_DEPTH], [0, 0, 1]])
+    # K = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
     normal1 = get_surface_normal_by_depth(depth, K)
     # normal1 = get_surface_normal_by_depth(depth)
     normal2, pcl = get_normal_map_by_point_cloud(depth, K)
     vis_normal = lambda normal: np.uint8((normal + 1) / 2 * 255)[..., ::-1]
     normal1 = vis_normal(normal1)
     normal2 = vis_normal(normal2)
+
     show_image(normal1)
-    show_image(normal1[..., 0])
-    show_image(normal1[..., 1])
-    show_image(normal1[..., 2])
+    # show_image(normal1[..., 0])
+    # show_image(normal1[..., 1])
+    # show_image(normal1[..., 2])
     show_image(normal2)
 
-    seg = img_seg_slic(img, n_segments=20, compactness=10, sigma=0)
-    show_image(seg)
-    seg = img_seg_slic(normal1, n_segments=20, compactness=10, sigma=0)
-    show_image(seg)
-    seg = img_seg_slic(np.stack([depth, depth, depth], axis=-1), n_segments=20, compactness=10, sigma=0)
-    show_image(seg)
-    seg = img_seg_slic(np.stack([normal1[..., 0], normal1[..., 0], normal1[..., 0]], axis=-1), n_segments=20, compactness=0.01, sigma=0)
-    show_image(seg)
-    seg = img_seg_slic(np.stack([normal1[..., 1], normal1[..., 1], normal1[..., 1]], axis=-1), n_segments=20, compactness=0.01, sigma=0)
-    show_image(seg)
-    seg = img_seg_slic(np.stack([normal1[..., 2], normal1[..., 2], normal1[..., 2]], axis=-1), n_segments=20, compactness=0.01, sigma=0)
-    show_image(seg)
+    # seg = img_seg_slic(img, n_segments=20, compactness=10, sigma=0)
+    # seg = scikit_mean_shift(img)
+    # show_image(seg)
+    # seg = img_seg_slic(normal1, n_segments=20, compactness=10, sigma=0)
+    # seg = scikit_mean_shift(normal1)
+    # show_image(seg)
+    # seg = img_seg_slic(np.stack([depth, depth, depth], axis=-1), n_segments=20, compactness=10, sigma=0)
+    # seg = img_seg_slic(np.stack([normal1[..., 0], normal1[..., 0], normal1[..., 0]], axis=-1), n_segments=20, compactness=0.01, sigma=0)
+    # show_image(seg)
+    # seg = img_seg_slic(np.stack([normal1[..., 1], normal1[..., 1], normal1[..., 1]], axis=-1), n_segments=20, compactness=0.01, sigma=0)
+    # show_image(seg)
+    # seg = img_seg_slic(np.stack([normal1[..., 2], normal1[..., 2], normal1[..., 2]], axis=-1), n_segments=20, compactness=0.01, sigma=0)
+    # show_image(seg)
 
+    # query = img
+    # query = np.stack([depth, depth, depth], axis=-1)
+    # query = normal1
+    # query = normal1 / 255.
+    # show_image(query)
+
+    # query = skimage.filters.gaussian(query, sigma=6)
+    # show_image(query)
+
+    # # # seg = scikit_mean_shift(img)
+    # seg = scikit_mean_shift(query)
+    # # # seg = scikit_mean_shift(np.stack([depth, depth, depth], axis=-1))
+    # seg = (seg * 255).astype(np.uint8)
+    # show_image(seg)
+    # print(seg.shape, seg.dtype)
+    # iio.imwrite('seg-nyu15-normal1-sigma6.png', seg)
+
+    # segs = []
+    # for sigma in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]:
+    #     cur_query = skimage.filters.gaussian(query, sigma=sigma)
+    #     seg = scikit_mean_shift(cur_query)
+    #     segs.append(seg)
+    # plot_images(segs)
+
+    # segs = []
+    # for ksize in [3, 5, 7, 9, 11, 13]:
+    #     cur_query = skimage.filters.laplace(query, ksize=ksize)
+    #     # show_image(cur_query)
+    #     seg = scikit_mean_shift(cur_query)
+    #     segs.append(seg)
+    # plot_images(segs)
+
+
+    # pcl = colored_pcl_from_depth(depth, normal)
+    # # pcl = pcl_from_depth2(depth)
     # visualize_pcl(pcl)

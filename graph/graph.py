@@ -3,6 +3,13 @@ import copy
 import numpy as np
 import open3d as o3d
 from scipy.spatial import KDTree
+import trimesh
+import os
+import sys
+import inspect
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(currentdir)
+sys.path.insert(0, parentdir)
 from main import rotate_point_cloud_align_z_axis
 from tools.RGB_img_2_planes import get_all_planes
 
@@ -239,6 +246,68 @@ def get_plane_corners(plane_points, plane_normal):
     return corner_original
 
 
+# def create_tensor_cube_mesh(corners): # create a tensor mesh cube from the corners
+#     triangles = np.array([[0, 1, 2], [2, 3, 0], [0, 4, 5], [5, 1, 0], [1, 5, 6], [6, 2, 1], [2, 6, 7], [7, 3, 2], [3, 7, 4], [4, 0, 3], [5, 4, 7], [7, 6, 5]])
+#     device = o3d.core.Device("CPU:0")
+#     dtype_f = o3d.core.float32
+#     dtype_i = o3d.core.int32
+
+#     mesh = o3d.t.geometry.TriangleMesh()
+#     mesh.vertex.positions = o3d.core.Tensor(corners, device=device, dtype=dtype_f)
+#     mesh.triangle.indices = o3d.core.Tensor(triangles, device=device, dtype=dtype_i)
+#     mesh.compute_vertex_normals()
+#     mesh.compute_triangle_normals()
+
+#     return mesh
+
+
+def tmesh2mesh(tmesh):
+    mesh = o3d.geometry.TriangleMesh()
+    mesh.triangles = o3d.utility.Vector3iVector(tmesh.triangle.indices.numpy())
+    mesh.vertices = o3d.utility.Vector3dVector(tmesh.vertex.positions.numpy())
+    return mesh
+
+
+def mesh2tmesh(mesh):
+    tmesh = o3d.t.geometry.TriangleMesh()
+    tmesh.vertex.positions = o3d.core.Tensor(np.asarray(mesh.vertices), dtype=o3d.core.float32)
+    tmesh.triangle.indices = o3d.core.Tensor(np.asarray(mesh.triangles), dtype=o3d.core.int32)
+    return tmesh
+
+
+def mesh2trimesh(mesh):
+    tmesh = trimesh.Trimesh(vertices=np.asarray(mesh.vertices), faces=np.asarray(mesh.triangles), process=False)
+    return tmesh
+
+
+def trimesh2mesh(trimesh):
+    mesh = o3d.geometry.TriangleMesh()
+    mesh.triangles = o3d.utility.Vector3iVector(trimesh.faces)
+    mesh.vertices = o3d.utility.Vector3dVector(trimesh.vertices)
+    return mesh
+
+
+def get_cube_intersection(cube1, cube2, method='trimesh'):
+
+    if method == 'trimesh': # trimesh has less outliers then o3d, but needs Blender
+        trimesh1 = mesh2trimesh(o3d.geometry.TriangleMesh.create_from_oriented_bounding_box(cube1.get_minimal_oriented_bounding_box()))
+        trimesh2 = mesh2trimesh(o3d.geometry.TriangleMesh.create_from_oriented_bounding_box(cube2.get_minimal_oriented_bounding_box()))
+        intersection = trimesh.boolean.intersection([trimesh1, trimesh2])
+        if isinstance(intersection, trimesh.Scene):
+            return None
+        return trimesh2mesh(intersection)
+
+    elif method == 'o3d':
+        tmesh1 = mesh2tmesh(o3d.geometry.TriangleMesh.create_from_oriented_bounding_box(cube1.get_minimal_oriented_bounding_box()))
+        tmesh2 = mesh2tmesh(o3d.geometry.TriangleMesh.create_from_oriented_bounding_box(cube2.get_minimal_oriented_bounding_box()))
+        intersection = tmesh1.boolean_intersection(tmesh2)
+        # intersection = tmesh1.boolean_difference(tmesh2)
+        # intersection = tmesh1.boolean_union(tmesh2)
+        if intersection.vertex.positions.shape[0] == 0:
+            return None
+        return tmesh2mesh(intersection)
+
+
 def create_cuboid(corners):
     # Define the edges of the cuboid
     edges = np.array([[0, 1], [1, 2], [2, 3], [3, 0], [0, 4], [1, 5], [2, 6], [3, 7], [4, 5], [5, 6], [6, 7], [7, 4]])
@@ -288,22 +357,46 @@ def get_raw_cubes(graph):
         # create a cube with the 8 corners
         cube = create_cuboid(new_corners)
         graph['raw_cubes'].append(cube)
+        # o3d.visualization.draw_geometries([cube])
+        # break
 
     # visualize the raw cubes
-    o3d.visualization.draw_geometries(graph['raw_cubes'])
+    # o3d.visualization.draw_geometries(graph['raw_cubes'])
 
 
 def main():
-    # get the clusters and the raw cubes
+
     clusters = get_all_planes()
     get_raw_cubes(clusters)
 
+    cube_id1 = 0
+    cube_id2 = 14
+    # if using method='o3d' to find the intersection, cube_id1 = 0, cube_id2 = 4 will fail
+    intersection_mesh = get_cube_intersection(clusters['raw_cubes'][cube_id1], clusters['raw_cubes'][cube_id2], method='trimesh')
+
+    intersection = []
+    if intersection_mesh is not None:
+        # intersection_mesh = tmesh2mesh(intersection_tmesh)
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(intersection_mesh.vertices)
+        # pcd = intersection_mesh.sample_points_uniformly(number_of_points=1000)
+        bbox = pcd.get_minimal_oriented_bounding_box()
+        # bbox = intersection_mesh.get_minimal_oriented_bounding_box()    # get bounding box directly from the mesh does not work
+        # bbox = intersection_mesh.get_oriented_bounding_box()
+        # bbox = intersection_mesh.get_axis_aligned_bounding_box()
+        bbox.color = [0, 1, 0]
+        intersection.append(intersection_mesh)
+        intersection.append(pcd)
+        intersection.append(bbox)
+
+    o3d.visualization.draw_geometries([clusters['raw_cubes'][cube_id1], clusters['raw_cubes'][cube_id2]] + intersection)
+
     # build the graph
-    graph = graph_builder(clusters)
-    graph.find_all_connectives()
+    # graph = graph_builder(clusters)
+    # graph.find_all_connectives()
 
     # prune connections
-    print("*" * 50)
+    # print("*" * 50)
     # graph.prune_all_connectivity()
 
     # # visualize the graph

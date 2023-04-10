@@ -6,6 +6,7 @@ import open3d as o3d
 import cv2
 import os
 import skimage
+import torch
 import sklearn.cluster as skc
 from sklearn.cluster import MeanShift, estimate_bandwidth
 from depth2normal import get_surface_normal_by_depth, get_normal_map_by_point_cloud
@@ -115,6 +116,10 @@ def sk_spectral_clustering(feat, n_clusters=2):
 
 
 def get_all_planes(depth_path="../data/NYU-Depth/15.png", normal_path="../data/seg-nyu15-normal1-sigma6.png"):
+    if os.path.exists(os.path.join('../', "all_clusters.pth")):
+        all_clusters = torch.load(os.path.join('../', "all_clusters.pth"))
+        return all_clusters
+    
     depth = iio.imread(depth_path)
     normal = iio.imread(normal_path)
 
@@ -167,6 +172,8 @@ def get_all_planes(depth_path="../data/NYU-Depth/15.png", normal_path="../data/s
         # cur_dir = np.sum(cur_normals, axis=0)
         cur_dir = np.mean(cur_normals, axis=0)
         cur_dir = cur_dir / np.linalg.norm(cur_dir)
+        if np.dot(cur_dir, dir) > 0:
+            cur_dir = -cur_dir
         print("cur_dir: ", cur_dir)
         cur_depth = np.dot(cur_points, cur_dir)
 
@@ -284,4 +291,36 @@ def get_all_planes(depth_path="../data/NYU-Depth/15.png", normal_path="../data/s
     visualize_pcl(new_pcl)
     all_clusters['length_max'] = new_pcl.get_axis_aligned_bounding_box().get_extent().max()
     # finding the longest edge of the bounding box
+    torch.save(all_clusters, os.path.join('../', "all_clusters.pth"))
     return all_clusters
+
+
+if __name__ == "__main__":
+    all_clusters = get_all_planes()
+
+    vis_normals = []
+    all_planes = []
+    all_colors = []
+    for i, ppts in enumerate(all_clusters["plane_points"]):
+        cur_plane_point = ppts
+        cur_plane_normal = all_clusters["plane_normals"][i]
+
+        all_planes.append(all_clusters["projected_points"][i])
+        all_colors.append(all_clusters["colors"][i])
+
+        cur_vis_normal = o3d.geometry.LineSet()
+        cur_vis_normal.points = o3d.utility.Vector3dVector(np.stack([cur_plane_point, cur_plane_point + cur_plane_normal * 0.5], axis=0))
+        cur_vis_normal.lines = o3d.utility.Vector2iVector(np.array([[0, 1]]))
+        cur_vis_normal.colors = o3d.utility.Vector3dVector(np.array([[1, 0, 0]]))
+        vis_normals.append(cur_vis_normal)
+
+    all_planes = np.concatenate(all_planes, axis=0)
+    all_colors = np.concatenate(all_colors, axis=0)
+
+    new_pcl = o3d.geometry.PointCloud()
+    new_pcl.points = o3d.utility.Vector3dVector(all_planes)
+    # pcl.colors = o3d.utility.Vector3dVector(colors[mask, :])
+    # pcl.colors = o3d.utility.Vector3dVector(cmap(labels / labels.max())[:, :3])
+    new_pcl.colors = o3d.utility.Vector3dVector(all_colors)
+    # visualize_pcl(new_pcl)
+    o3d.visualization.draw_geometries([new_pcl] + vis_normals)
