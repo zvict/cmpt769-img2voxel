@@ -17,6 +17,27 @@ from tools.RGB_img_2_planes import get_all_planes
 # in this file, we have a graph class, which is a list of nodes
 # and a node class. For each node, we have a list of connected nodes
 
+def do_lines_intersect(line1_start, line1_end, line2_start, line2_end):
+    # Calculate slopes and y-intercepts of each line
+    m1 = (line1_end[1] - line1_start[1]) / (line1_end[0] - line1_start[0])
+    b1 = line1_start[1] - m1 * line1_start[0]
+    m2 = (line2_end[1] - line2_start[1]) / (line2_end[0] - line2_start[0])
+    b2 = line2_start[1] - m2 * line2_start[0]
+
+    # Check if lines are parallel or coincident
+    if m1 == m2:
+        return b1 == b2
+
+    # Calculate intersection point
+    x = (b2 - b1) / (m1 - m2)
+    y = m1 * x + b1
+
+    # Check if intersection point is within range of both lines
+    return (min(line1_start[0], line1_end[0]) <= x <= max(line1_start[0], line1_end[0])
+            and min(line1_start[1], line1_end[1]) <= y <= max(line1_start[1], line1_end[1])
+            and min(line2_start[0], line2_end[0]) <= x <= max(line2_start[0], line2_end[0])
+            and min(line2_start[1], line2_end[1]) <= y <= max(line2_start[1], line2_end[1]))
+
 
 class Node:
     def __init__(self, points, normals, labels, colors, plane_points, plane_normals, projected_points, raw_cube, id):
@@ -87,6 +108,69 @@ class Graph:
     def find_all_connectives(self, point_type='projected', threshold=0.1):
         for n in self.nodes.values():
             self.find_connectivity(n.id, point_type=point_type, threshold=threshold)
+
+    def get_intersection_two_planes_after_projection(self, node_1, node_2):
+        # we first calculate the cross product of the two planes' normals
+        # then we find the rotation matrix that rotates the cross product to the z axis
+        # then we rotate the two planes to the x-y plane
+        # then we find the intersection of the two planes in the x-y plane
+        cross_product = np.cross(node_1.plane_normals, node_2.plane_normals)
+
+        # we need to first Compute the angle between the normal vector and the z-axis (0, 0, 1)
+        angle = np.arccos(np.dot(cross_product, np.array([0, 0, 1])))
+
+        # finding the rotation axis
+        axis = np.cross(cross_product, np.array([0, 0, 1]))
+        axis = axis / np.linalg.norm(axis)
+
+        R = np.array([[np.cos(angle) + axis[0] ** 2 * (1 - np.cos(angle)), axis[0] * axis[1] * (1 - np.cos(angle)) - axis[2] * np.sin(angle), axis[0] * axis[2] * (1 - np.cos(angle)) + axis[1] * np.sin(angle)],
+                      [axis[1] * axis[0] * (1 - np.cos(angle)) + axis[2] * np.sin(angle), np.cos(angle) + axis[1] ** 2 * (1 - np.cos(angle)), axis[1] * axis[2] * (1 - np.cos(angle)) - axis[0] * np.sin(angle)],
+                      [axis[2] * axis[0] * (1 - np.cos(angle)) - axis[1] * np.sin(angle), axis[2] * axis[1] * (1 - np.cos(angle)) + axis[0] * np.sin(angle), np.cos(angle) + axis[2] ** 2 * (1 - np.cos(angle))]])
+
+        # visualization
+        pcd_1 = o3d.geometry.PointCloud()
+        pcd_1.points = o3d.utility.Vector3dVector(node_1.projected_points)
+        pcd_1.paint_uniform_color([1, 0, 0])
+
+        pcd_2 = o3d.geometry.PointCloud()
+        pcd_2.points = o3d.utility.Vector3dVector(node_2.projected_points)
+        pcd_2.paint_uniform_color([0, 1, 0])
+
+        # we rotate the two planes to the x-y plane
+        rotated_plane_1 = np.matmul(R, node_1.projected_points.T).T
+        rotated_plane_2 = np.matmul(R, node_2.projected_points.T).T
+
+        pcd_1_rotated = o3d.geometry.PointCloud()
+        pcd_1_rotated.points = o3d.utility.Vector3dVector(rotated_plane_1)
+        pcd_1_rotated.paint_uniform_color([1, 0, 0])
+
+        pcd_2_rotated = o3d.geometry.PointCloud()
+        pcd_2_rotated.points = o3d.utility.Vector3dVector(rotated_plane_2)
+        pcd_2_rotated.paint_uniform_color([0, 1, 0])
+
+        # finding the new normals
+        new_normal_1 = np.matmul(R, node_1.plane_normals)
+        new_normal_2 = np.matmul(R, node_2.plane_normals)
+
+        # we will find the center point of the two rotated planes
+        center_1 = np.mean(rotated_plane_1, axis=0)
+        center_2 = np.mean(rotated_plane_2, axis=0)
+
+        infinity_1 = center_1 + new_normal_1 * 10
+        infinity_2 = center_2 + new_normal_2 * 10
+
+        line_set = o3d.geometry.LineSet()
+        line_set.points = o3d.utility.Vector3dVector([center_1, infinity_1, center_2, infinity_2])
+        line_set.lines = o3d.utility.Vector2iVector([[0, 1], [2, 3]])
+        line_set.colors = o3d.utility.Vector3dVector([[0, 0, 1], [0, 0, 1]])
+
+
+        # center_1 and infinity_1 create a line(l1). center_2 and infinity_2 create a line (l2)
+        # we want to see if l1 and l2 intersect
+        intersection = do_lines_intersect(center_1[:2], infinity_1[:2], center_2[:2], infinity_2[:2])
+        # if intersection:
+        #     o3d.visualization.draw_geometries([pcd_1, pcd_2, pcd_1_rotated, pcd_2_rotated, line_set])
+        return intersection
 
     def find_connectivity(self, point_id, point_type='projected', threshold=0.1):
         # in this function, we are going to find the connectivity of a node
@@ -179,11 +263,13 @@ class Graph:
             return None
         for connection in self.nodes[node_id].connected_nodes:
             angle = np.arccos(np.dot(self.nodes[node_id].plane_normals, connection.plane_normals))
-            if angle > (np.pi / 2 - threshold) and angle < (np.pi / 2 + threshold): # between 80 and 110 degrees
+            if angle < (np.pi / 2 - threshold) or angle > (np.pi / 2 + threshold):  # between 80 and 110 degrees
                 print("Node: ", node_id, "Connection: ", connection.id, "Angle: ", angle)
             else:
-                self.nodes[node_id].connected_nodes.remove(connection)
-                connection.connected_nodes.remove(self.nodes[node_id])
+                intersection = self.get_intersection_two_planes_after_projection(self.nodes[node_id], connection)
+                if not intersection:
+                    self.nodes[node_id].connected_nodes.remove(connection)
+                    connection.connected_nodes.remove(self.nodes[node_id])
 
     def prune_all_connectivity(self, threshold=0.1):
         for node in self.nodes.values():
@@ -352,7 +438,7 @@ def get_raw_cubes(graph):
         new_corners[0:4, :] = corners
 
         # expand the corners along the normal direction
-        new_corners[4:8, :] = corners + expansion * graph['plane_normals'][i]
+        new_corners[4:8, :] = corners - expansion * graph['plane_normals'][i]
 
         # create a cube with the 8 corners
         cube = create_cuboid(new_corners)
@@ -397,14 +483,14 @@ def main():
 
     # prune connections
     # print("*" * 50)
-    # graph.prune_all_connectivity()
+    graph.prune_all_connectivity()
 
     # # visualize the graph
-    # nodes = graph.get_nodes().values()
-    #
-    # for n in nodes:
-    #     graph.plot_a_node_connectivity(n.id)
-    #
+    nodes = graph.get_nodes().values()
+
+    for n in nodes:
+        graph.plot_a_node_connectivity(n.id)
+
     # x = 0
 
 
