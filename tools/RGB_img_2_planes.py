@@ -6,6 +6,7 @@ import open3d as o3d
 import cv2
 import os
 import skimage
+import torch
 import sklearn.cluster as skc
 from sklearn.cluster import MeanShift, estimate_bandwidth
 from depth2normal import get_surface_normal_by_depth, get_normal_map_by_point_cloud
@@ -115,6 +116,10 @@ def sk_spectral_clustering(feat, n_clusters=2):
 
 
 def get_all_planes(depth_path="../data/NYU-Depth/15.png", normal_path="../data/seg-nyu15-normal1-sigma6.png"):
+    if os.path.exists(os.path.join('../', "all_clusters.pth")):
+        all_clusters = torch.load(os.path.join('../', "all_clusters.pth"))
+        return all_clusters
+    
     depth = iio.imread(depth_path)
     normal = iio.imread(normal_path)
 
@@ -284,4 +289,5 @@ def get_all_planes(depth_path="../data/NYU-Depth/15.png", normal_path="../data/s
     visualize_pcl(new_pcl)
     all_clusters['length_max'] = new_pcl.get_axis_aligned_bounding_box().get_extent().max()
     # finding the longest edge of the bounding box
+    torch.save(all_clusters, os.path.join('../', "all_clusters.pth"))
     return all_clusters
