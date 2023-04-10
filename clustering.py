@@ -172,6 +172,8 @@ for i, dir in enumerate(normal_dirs):
     # cur_dir = np.sum(cur_normals, axis=0)
     cur_dir = np.mean(cur_normals, axis=0)
     cur_dir = cur_dir / np.linalg.norm(cur_dir)
+    if np.dot(cur_dir, dir) > 0:
+        cur_dir = -cur_dir
     print("cur_dir: ", cur_dir)
     cur_depth = np.dot(cur_points, cur_dir)
 
@@ -251,6 +253,7 @@ all_clusters = {
     "projected_points": [],
 }
 all_planes = []
+vis_normals = []
 for v in range(all_labels.min(), all_labels.max() + 1):
     cur_mask = (all_labels == v)
     print("cur_mask: ", v, cur_mask.sum())
@@ -262,6 +265,7 @@ for v in range(all_labels.min(), all_labels.max() + 1):
     # cur_pcl.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=NORMAL_EST_RADIUS, max_nn=NORMAL_EST_KNN))
     # cur_normals = np.asarray(cur_pcl.normals)
     # cur_normals = cur_normals / np.linalg.norm(cur_normals, axis=-1, keepdims=True)
+
     # cur_plane = estimate_plane(cur_points, cur_normals)
     # cur_plane, _ = point2plane_lstsq(cur_points)
     # cur_proj_points = project_points2plane(cur_points, cur_plane)
@@ -280,6 +284,12 @@ for v in range(all_labels.min(), all_labels.max() + 1):
     all_clusters["plane_normals"].append(cur_plane_normal)
     all_clusters["projected_points"].append(cur_proj_points)
 
+    cur_vis_normal = o3d.geometry.LineSet()
+    cur_vis_normal.points = o3d.utility.Vector3dVector(np.stack([cur_plane_point, cur_plane_point + cur_plane_normal * 0.5], axis=0))
+    cur_vis_normal.lines = o3d.utility.Vector2iVector(np.array([[0, 1]]))
+    cur_vis_normal.colors = o3d.utility.Vector3dVector(np.array([[1, 0, 0]]))
+    vis_normals.append(cur_vis_normal)
+
 torch.save(all_clusters, "nyu15-all_clusters.pth")
 
 all_planes = np.concatenate(all_planes, axis=0)
@@ -289,4 +299,5 @@ new_pcl.points = o3d.utility.Vector3dVector(all_planes)
 # pcl.colors = o3d.utility.Vector3dVector(colors[mask, :])
 # pcl.colors = o3d.utility.Vector3dVector(cmap(labels / labels.max())[:, :3])
 new_pcl.colors = o3d.utility.Vector3dVector(all_colors)
-visualize_pcl(new_pcl)
+# visualize_pcl(new_pcl)
+o3d.visualization.draw_geometries([new_pcl] + vis_normals)
