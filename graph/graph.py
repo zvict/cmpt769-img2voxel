@@ -7,6 +7,7 @@ import trimesh
 import os
 import sys
 import inspect
+
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
@@ -163,7 +164,6 @@ class Graph:
         line_set.points = o3d.utility.Vector3dVector([center_1, infinity_1, center_2, infinity_2])
         line_set.lines = o3d.utility.Vector2iVector([[0, 1], [2, 3]])
         line_set.colors = o3d.utility.Vector3dVector([[0, 0, 1], [0, 0, 1]])
-
 
         # center_1 and infinity_1 create a line(l1). center_2 and infinity_2 create a line (l2)
         # we want to see if l1 and l2 intersect
@@ -374,8 +374,7 @@ def trimesh2mesh(trimesh):
 
 
 def get_cube_intersection(cube1, cube2, method='trimesh'):
-
-    if method == 'trimesh': # trimesh has less outliers then o3d, but needs Blender
+    if method == 'trimesh':  # trimesh has less outliers then o3d, but needs Blender
         trimesh1 = mesh2trimesh(o3d.geometry.TriangleMesh.create_from_oriented_bounding_box(cube1.get_minimal_oriented_bounding_box()))
         trimesh2 = mesh2trimesh(o3d.geometry.TriangleMesh.create_from_oriented_bounding_box(cube2.get_minimal_oriented_bounding_box()))
         intersection = trimesh.boolean.intersection([trimesh1, trimesh2])
@@ -450,46 +449,98 @@ def get_raw_cubes(graph):
     # o3d.visualization.draw_geometries(graph['raw_cubes'])
 
 
-def main():
+def longest_common_subsequence(list1, list2):
+    list1.sort()
+    list2.sort()
+    m, n = len(list1), len(list2)
+    dp = [[0] * (n + 1) for _ in range(m + 1)]
 
+    for i in range(1, m + 1):
+        for j in range(1, n + 1):
+            if list1[i - 1] == list2[j - 1]:
+                dp[i][j] = dp[i - 1][j - 1] + 1
+            else:
+                dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
+
+    subsequence = []
+    i, j = m, n
+    while i > 0 and j > 0:
+        if list1[i - 1] == list2[j - 1]:
+            subsequence.append(list1[i - 1])
+            i -= 1
+            j -= 1
+        elif dp[i - 1][j] > dp[i][j - 1]:
+            i -= 1
+        else:
+            j -= 1
+
+    subsequence.reverse()
+    return subsequence
+
+
+def longest_common_subsequence_multiple(lists):
+    if not lists:
+        return []
+    if len(lists) == 1:
+        return lists[0]
+
+    result = lists[0]
+    for i in range(1, len(lists)):
+        result = longest_common_subsequence(result, lists[i])
+
+    return result
+
+
+def get_final_cubes(graph):
+    pass
+
+
+def main():
     clusters = get_all_planes()
     get_raw_cubes(clusters)
 
-    cube_id1 = 0
-    cube_id2 = 14
-    # if using method='o3d' to find the intersection, cube_id1 = 0, cube_id2 = 4 will fail
-    intersection_mesh = get_cube_intersection(clusters['raw_cubes'][cube_id1], clusters['raw_cubes'][cube_id2], method='trimesh')
+    # cube_id1 = 0
+    # cube_id2 = 14
+    # # if using method='o3d' to find the intersection, cube_id1 = 0, cube_id2 = 4 will fail
+    # intersection_mesh = get_cube_intersection(clusters['raw_cubes'][cube_id1], clusters['raw_cubes'][cube_id2], method='trimesh')
+    #
+    # intersection = []
+    # if intersection_mesh is not None:
+    #     # intersection_mesh = tmesh2mesh(intersection_tmesh)
+    #     pcd = o3d.geometry.PointCloud()
+    #     pcd.points = o3d.utility.Vector3dVector(intersection_mesh.vertices)
+    #     # pcd = intersection_mesh.sample_points_uniformly(number_of_points=1000)
+    #     bbox = pcd.get_minimal_oriented_bounding_box()
+    #     # bbox = intersection_mesh.get_minimal_oriented_bounding_box()    # get bounding box directly from the mesh does not work
+    #     # bbox = intersection_mesh.get_oriented_bounding_box()
+    #     # bbox = intersection_mesh.get_axis_aligned_bounding_box()
+    #     bbox.color = [0, 1, 0]
+    #     intersection.append(intersection_mesh)
+    #     intersection.append(pcd)
+    #     intersection.append(bbox)
+    #
+    # o3d.visualization.draw_geometries([clusters['raw_cubes'][cube_id1], clusters['raw_cubes'][cube_id2]] + intersection)
 
-    intersection = []
-    if intersection_mesh is not None:
-        # intersection_mesh = tmesh2mesh(intersection_tmesh)
-        pcd = o3d.geometry.PointCloud()
-        pcd.points = o3d.utility.Vector3dVector(intersection_mesh.vertices)
-        # pcd = intersection_mesh.sample_points_uniformly(number_of_points=1000)
-        bbox = pcd.get_minimal_oriented_bounding_box()
-        # bbox = intersection_mesh.get_minimal_oriented_bounding_box()    # get bounding box directly from the mesh does not work
-        # bbox = intersection_mesh.get_oriented_bounding_box()
-        # bbox = intersection_mesh.get_axis_aligned_bounding_box()
-        bbox.color = [0, 1, 0]
-        intersection.append(intersection_mesh)
-        intersection.append(pcd)
-        intersection.append(bbox)
-
-    o3d.visualization.draw_geometries([clusters['raw_cubes'][cube_id1], clusters['raw_cubes'][cube_id2]] + intersection)
+    # lists = [[1, 2, 5, 12, 7, 3, 6, 9, 23], [0, 9, 6, 4, 5, 23], [4, 5, 8, 23, 3, 6, 1, 16, 9, 45]]
+    # result = longest_common_subsequence_multiple(lists)
+    # print(result)
 
     # build the graph
-    # graph = graph_builder(clusters)
-    # graph.find_all_connectives()
+    graph = graph_builder(clusters)
+    graph.find_all_connectives()
 
     # prune connections
     # print("*" * 50)
     graph.prune_all_connectivity()
 
     # # visualize the graph
-    nodes = graph.get_nodes().values()
+    # nodes = graph.get_nodes().values()
+    #
+    # for n in nodes:
+    #     graph.plot_a_node_connectivity(n.id)
 
-    for n in nodes:
-        graph.plot_a_node_connectivity(n.id)
+    # get final cubes
+    get_final_cubes(graph)
 
     # x = 0
 
