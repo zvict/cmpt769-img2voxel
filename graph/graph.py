@@ -1,4 +1,5 @@
-import copy
+import random
+import time
 
 import numpy as np
 import open3d as o3d
@@ -13,6 +14,13 @@ parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 from main import rotate_point_cloud_align_z_axis
 from tools.RGB_img_2_planes import get_all_planes
+
+np.set_printoptions(suppress=True)
+
+# set seed
+random.seed(0)
+np.random.seed(0)
+
 
 
 # in this file, we have a graph class, which is a list of nodes
@@ -429,7 +437,7 @@ def check_pc_intersects(pc1, pc2, thr=0.01):
 
 def get_raw_cubes(graph):
     graph['raw_cubes'] = []
-    expansion = graph['length_max'] * 3
+    expansion = graph['length_max'] * 0.3
     for i in range(len(graph['projected_points'])):
         # our goal is to create a cube for each plane.
         # we need to find the bounding box of the plane.
@@ -504,6 +512,26 @@ def longest_common_subsequence_multiple(lists):
     return result
 
 
+# def get_all_longest_sequences(key, value, connections_dict):
+#     result = []
+#     if len(value) == 1:
+#         return None
+#     list_connected = []
+#     for connected in value:
+#         list_connected.append(connections_dict[connected])
+#     list_connected.remove(value)
+#     for i in range(len(list_connected)):
+#         res = longest_common_subsequence(value, list_connected[i])
+#         result.append(res)
+#     # we need to remove the elements in the result from the value of connections_dict for all keys
+#     # that their values has all the elements in the result.
+#     for item in result:
+#         for id in item:
+#             tmp_list = connections_dict[id]
+#             tmp_list = [x for x in tmp_list if x not in item]
+#             tmp_list.append(id)
+#             connections_dict[id] = tmp_list
+#     return result
 def get_all_longest_sequences(key, value, connections_dict):
     result = None
     if len(value) == 1:
@@ -528,6 +556,37 @@ def get_all_longest_sequences(key, value, connections_dict):
     return result
 
 
+# def get_final_cubes(connections_dict, graph):
+#     # connections_dict is a dictionary. the key is the cube id. the value is a list of cube ids that are connected to the key cube.
+#     final_cubes = []
+#
+#     # we first iterate over all the connections. for those who has one connection, we remove them from the list.
+#
+#     deleted_keys = []
+#     for key, value in connections_dict.items():
+#         if len(value) == 1:
+#             deleted_keys.append(key)
+#             final_cubes.append([graph.nodes[key].raw_cube])
+#     for key in deleted_keys:
+#         del connections_dict[key]
+#
+#     sequences = []
+#
+#     while len(connections_dict) > 0:
+#         connections_dict = dict(sorted(connections_dict.items(), key=lambda item: len(item[1]), reverse=True))
+#         key = list(connections_dict.keys())[0]
+#         value = connections_dict[key]
+#         res = get_all_longest_sequences(key, value, connections_dict)
+#         print("key: {}, value: {}, res: {}".format(key, value, res))
+#         if res is not None:
+#             sequences.extend(res)
+#         if len(connections_dict[key]) == 1:
+#             del connections_dict[key]
+#
+#     final_cubes.extend([list(map(lambda x: graph.nodes[x].raw_cube, seq)) for seq in sequences])
+#
+#     return final_cubes
+
 def get_final_cubes(connections_dict, graph):
     # connections_dict is a dictionary. the key is the cube id. the value is a list of cube ids that are connected to the key cube.
     final_cubes = []
@@ -549,9 +608,9 @@ def get_final_cubes(connections_dict, graph):
         key = list(connections_dict.keys())[0]
         value = connections_dict[key]
         res = get_all_longest_sequences(key, value, connections_dict)
-        print("key: {}, value: {}, res: {}".format(key, value, res))
+        # print("key: {}, value: {}, res: {}".format(key, value, res))
         if res is not None:
-            sequences.extend(res)
+            sequences.append(res)
         if len(connections_dict[key]) == 1:
             del connections_dict[key]
 
@@ -561,42 +620,25 @@ def get_final_cubes(connections_dict, graph):
 
 
 def main():
+    t1 = time.time()
     clusters = get_all_planes()
+    print("time to get all planes: {}".format(time.time() - t1))
+    t1 = time.time()
     get_raw_cubes(clusters)
-
-    # cube_id1 = 0
-    # cube_id2 = 14
-    # # if using method='o3d' to find the intersection, cube_id1 = 0, cube_id2 = 4 will fail
-    # intersection_mesh = get_cube_intersection(clusters['raw_cubes'][cube_id1], clusters['raw_cubes'][cube_id2], method='trimesh')
-    #
-    # intersection = []
-    # if intersection_mesh is not None:
-    #     # intersection_mesh = tmesh2mesh(intersection_tmesh)
-    #     pcd = o3d.geometry.PointCloud()
-    #     pcd.points = o3d.utility.Vector3dVector(intersection_mesh.vertices)
-    #     # pcd = intersection_mesh.sample_points_uniformly(number_of_points=1000)
-    #     bbox = pcd.get_minimal_oriented_bounding_box()
-    #     # bbox = intersection_mesh.get_minimal_oriented_bounding_box()    # get bounding box directly from the mesh does not work
-    #     # bbox = intersection_mesh.get_oriented_bounding_box()
-    #     # bbox = intersection_mesh.get_axis_aligned_bounding_box()
-    #     bbox.color = [0, 1, 0]
-    #     intersection.append(intersection_mesh)
-    #     intersection.append(pcd)
-    #     intersection.append(bbox)
-    #
-    # o3d.visualization.draw_geometries([clusters['raw_cubes'][cube_id1], clusters['raw_cubes'][cube_id2]] + intersection)
-
-    # lists = [[1, 2, 5, 12, 7, 3, 6, 9, 23], [0, 9, 6, 4, 5, 23], [4, 5, 8, 23, 3, 6, 1, 16, 9, 45]]
-    # result = longest_common_subsequence_multiple(lists)
-    # print(result)
+    print("time to get raw cubes: {}".format(time.time() - t1))
 
     # build the graph
+    t1 = time.time()
     graph = graph_builder(clusters)
+    print("time to build the graph: {}".format(time.time() - t1))
+    t1 = time.time()
     graph.find_all_connectives()
+    print("time to find all connectives: {}".format(time.time() - t1))
 
     # prune connections
-    # print("*" * 50)
+    t1 = time.time()
     graph.prune_all_connectivity()
+    print("time to prune all connectivity: {}".format(time.time() - t1))
 
     # # visualize the graph
     # nodes = graph.get_nodes().values()
@@ -605,8 +647,32 @@ def main():
     #     graph.plot_a_node_connectivity(n.id)
 
     # get final cubes
+    t1 = time.time()
     connections_list = graph.get_all_connection_lists()
-    get_final_cubes(connections_list, graph)
+    print("time to get all connection lists: {}".format(time.time() - t1))
+    t1 = time.time()
+    final_cubes = get_final_cubes(connections_list, graph)
+    print("time to get final cubes: {}".format(time.time() - t1))
+    result = []
+    t1 = time.time()
+    for item in final_cubes:
+        merged = item[0]
+        if len(item) == 1:
+            item.append(merged)
+        for i in range(1, len(item)):
+            merged = get_cube_intersection(merged, item[i], method='trimesh')
+            if merged is None:
+                break
+        if merged is not None:
+            result.append(merged)
+    print("time to merge final cubes: {}".format(time.time() - t1))
+
+    # set color for each cube in the result
+    result.append(graph.pcd)
+    for i in range(len(result)):
+        result[i].paint_uniform_color([random.random(), random.random(), random.random()])
+
+    o3d.visualization.draw_geometries(result)
 
     # x = 0
 
