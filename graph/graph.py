@@ -22,7 +22,6 @@ random.seed(0)
 np.random.seed(0)
 
 
-
 # in this file, we have a graph class, which is a list of nodes
 # and a node class. For each node, we have a list of connected nodes
 
@@ -226,6 +225,8 @@ class Graph:
         if self.nodes[id].connected_nodes is None:
             self.find_connectivity(id, point_type='projected', threshold=0.1)
             self.prune_a_node_connectivity(node_id=id)
+        if self.nodes[id].connected_nodes is None:
+            self.nodes[id].connected_nodes = []
 
         # add the points of the connected nodes
         for node in self.nodes[id].connected_nodes:
@@ -640,11 +641,11 @@ def main():
     graph.prune_all_connectivity()
     print("time to prune all connectivity: {}".format(time.time() - t1))
 
-    # # visualize the graph
-    # nodes = graph.get_nodes().values()
-    #
-    # for n in nodes:
-    #     graph.plot_a_node_connectivity(n.id)
+    # visualize the graph
+    nodes = graph.get_nodes().values()
+
+    for n in nodes:
+        graph.plot_a_node_connectivity(n.id)
 
     # get final cubes
     t1 = time.time()
