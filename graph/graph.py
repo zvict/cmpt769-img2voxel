@@ -275,6 +275,19 @@ class Graph:
         for node in self.nodes.values():
             self.prune_a_node_connectivity(node.id, threshold=threshold)
 
+    def get_all_connection_lists(self):
+        connection_lists = {}
+        for node in self.nodes.values():
+            connection_list = [node.id]
+            if node.connected_nodes is None:
+                connection_lists[node.id] = connection_list
+                continue
+            for connection in node.connected_nodes:
+                connection_list.append(connection.id)
+                # remove duplicates
+            connection_lists[node.id] = list(set(connection_list))
+        return connection_lists
+
 
 def graph_builder(clusters):
     """
@@ -374,7 +387,7 @@ def trimesh2mesh(trimesh):
 
 
 def get_cube_intersection(cube1, cube2, method='trimesh'):
-    if method == 'trimesh':  # trimesh has less outliers then o3d, but needs Blender
+    if method == 'trimesh':  # trimesh has fewer outliers than o3d, but needs Blender
         trimesh1 = mesh2trimesh(o3d.geometry.TriangleMesh.create_from_oriented_bounding_box(cube1.get_minimal_oriented_bounding_box()))
         trimesh2 = mesh2trimesh(o3d.geometry.TriangleMesh.create_from_oriented_bounding_box(cube2.get_minimal_oriented_bounding_box()))
         intersection = trimesh.boolean.intersection([trimesh1, trimesh2])
@@ -491,8 +504,52 @@ def longest_common_subsequence_multiple(lists):
     return result
 
 
-def get_final_cubes(graph):
-    pass
+def get_all_longest_sequences(key, value, connections_dict):
+    results = []
+    while len(value) > 1:
+        list_connected = []
+        for connected in value:
+            list_connected.append(connections_dict[connected])
+        longest_seq = longest_common_subsequence_multiple(list_connected)
+        results.append(longest_seq)
+
+        for k, v in connections_dict.items():
+            # we will remove all elements of the longest sequence from the value of the connections_dict
+            if k in longest_seq:
+                # remove all v from connections_dict[k]
+                new_v = v - set(longest_seq)
+                connections_dict[k] = new_v
+
+        connections_dict[key].append(key)
+
+    return results
+
+
+def get_final_cubes(connections_dict, graph):
+    # connections_dict is a dictionary. the key is the cube id. the value is a list of cube ids that are connected to the key cube.
+    final_cubes = []
+
+    # we first iterate over all the connections. for those who has one connection, we remove them from the list.
+
+    deleted_keys = []
+    for key, value in connections_dict.items():
+        if len(value) == 1:
+            deleted_keys.append(key)
+            final_cubes.append([graph.nodes[key].raw_cube])
+    for key in deleted_keys:
+        del connections_dict[key]
+
+    sequences = []
+    # now we try to find the longest common subsequence of the remaining connections. we repeat this process until all the connections are removed.
+    for key, value in connections_dict.items():
+        if len(value) == 1:
+            continue
+        res = get_all_longest_sequences(key, value, connections_dict)
+        sequences.extend(res)
+
+    final_cubes.extend([list(map(lambda x: graph.nodes[x].raw_cubes, seq)) for seq in sequences])
+
+    return final_cubes
 
 
 def main():
@@ -540,7 +597,8 @@ def main():
     #     graph.plot_a_node_connectivity(n.id)
 
     # get final cubes
-    get_final_cubes(graph)
+    connections_list = graph.get_all_connection_lists()
+    get_final_cubes(connections_list, graph)
 
     # x = 0
 
