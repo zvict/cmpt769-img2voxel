@@ -505,24 +505,27 @@ def longest_common_subsequence_multiple(lists):
 
 
 def get_all_longest_sequences(key, value, connections_dict):
-    results = []
-    while len(value) > 1:
-        list_connected = []
-        for connected in value:
-            list_connected.append(connections_dict[connected])
-        longest_seq = longest_common_subsequence_multiple(list_connected)
-        results.append(longest_seq)
-
-        for k, v in connections_dict.items():
-            # we will remove all elements of the longest sequence from the value of the connections_dict
-            if k in longest_seq:
-                # remove all v from connections_dict[k]
-                new_v = v - set(longest_seq)
-                connections_dict[k] = new_v
-
-        connections_dict[key].append(key)
-
-    return results
+    result = None
+    if len(value) == 1:
+        return None
+    list_connected = []
+    for connected in value:
+        list_connected.append(connections_dict[connected])
+    list_connected.remove(value)
+    for i in range(len(list_connected)):
+        res = longest_common_subsequence(value, list_connected[i])
+        if result is None:
+            result = res
+        elif len(res) > len(result):
+            result = res
+    # we need to remove the elements in the result from the value of connections_dict for all keys
+    # that their values has all the elements in the result.
+    for id in result:
+        tmp_list = connections_dict[id]
+        tmp_list = [x for x in tmp_list if x not in result]
+        tmp_list.append(id)
+        connections_dict[id] = tmp_list
+    return result
 
 
 def get_final_cubes(connections_dict, graph):
@@ -540,14 +543,19 @@ def get_final_cubes(connections_dict, graph):
         del connections_dict[key]
 
     sequences = []
-    # now we try to find the longest common subsequence of the remaining connections. we repeat this process until all the connections are removed.
-    for key, value in connections_dict.items():
-        if len(value) == 1:
-            continue
-        res = get_all_longest_sequences(key, value, connections_dict)
-        sequences.extend(res)
 
-    final_cubes.extend([list(map(lambda x: graph.nodes[x].raw_cubes, seq)) for seq in sequences])
+    while len(connections_dict) > 0:
+        connections_dict = dict(sorted(connections_dict.items(), key=lambda item: len(item[1]), reverse=True))
+        key = list(connections_dict.keys())[0]
+        value = connections_dict[key]
+        res = get_all_longest_sequences(key, value, connections_dict)
+        print("key: {}, value: {}, res: {}".format(key, value, res))
+        if res is not None:
+            sequences.extend(res)
+        if len(connections_dict[key]) == 1:
+            del connections_dict[key]
+
+    final_cubes.extend([list(map(lambda x: graph.nodes[x].raw_cube, seq)) for seq in sequences])
 
     return final_cubes
 
