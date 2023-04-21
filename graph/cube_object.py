@@ -1,5 +1,8 @@
+import copy
+
 import numpy as np
 import open3d as o3d
+import optimization
 
 
 class CustomCube():
@@ -83,3 +86,10 @@ class CustomCube():
             self.distinct_norms.pop(key)
 
         assert len(self.distinct_norms) <= 3, "The number of distinct norms should be 3"
+
+    def optimize_orientation(self):
+        planes_normals = [key.plane_normals for key, value in self.distinct_norms.items()]
+        rotation_matrix = optimization.optimize_cubes_orientations(cube_normals=list(self.distinct_norms.values()),
+                                                                   plane_normals=planes_normals)
+        # rotate the cube
+        self.cube_triangle_meshes.rotate(rotation_matrix)
