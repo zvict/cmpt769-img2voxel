@@ -1,3 +1,4 @@
+import pickle
 import random
 import time
 import graph.tools as tools
@@ -8,6 +9,8 @@ import trimesh
 import os
 import sys
 import inspect
+
+from graph.cube_object import CustomCube
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
@@ -59,6 +62,19 @@ class Node:
         self.projected_points = projected_points
         self.raw_cube = raw_cube
         self.id = id
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(projected_points)
+        self.bounding_box = pcd.get_axis_aligned_bounding_box()
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state['bounding_box'] = o3d.io.write_line_set(filename='./results/lineset_temp.lineset',
+                                                      line_set=self.bounding_box)
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self.bounding_box = o3d.io.read_line_set(filename='lineset_temp.lineset')
 
     def add_connection(self, node):
         if self.connected_nodes is None:
@@ -260,7 +276,7 @@ class Graph:
         # set the color of pcd points to blue
         destination_pcd.paint_uniform_color([0, 0, 1])
         # get a copy of self.pcd and remove the _pcd points from it
-        # o3d.visualization.draw_geometries([self.pcd, line_set, origin_pcd, destination_pcd])
+        o3d.visualization.draw_geometries([self.pcd, line_set, origin_pcd, destination_pcd])
 
     def prune_a_node_connectivity(self, node_id, threshold=0.1):
         # in this function, we are looking for the nodes that
@@ -598,7 +614,7 @@ def get_final_cubes(connections_dict, graph):
     for key, value in connections_dict.items():
         if len(value) == 1:
             deleted_keys.append(key)
-            final_cubes.append([graph.nodes[key].raw_cube])
+            final_cubes.append([graph.nodes[key]])
     for key in deleted_keys:
         del connections_dict[key]
 
@@ -615,12 +631,13 @@ def get_final_cubes(connections_dict, graph):
         if len(connections_dict[key]) == 1:
             del connections_dict[key]
 
-    final_cubes.extend([list(map(lambda x: graph.nodes[x].raw_cube, seq)) for seq in sequences])
+    final_cubes.extend([list(map(lambda x: graph.nodes[x], seq)) for seq in sequences])
 
     return final_cubes
 
 
-def main():
+def get_unoptimized_cubes():
+    result = []
     t1 = time.time()
     clusters = get_all_planes()
     print("time to get all planes: {}".format(time.time() - t1))
@@ -642,10 +659,10 @@ def main():
     print("time to prune all connectivity: {}".format(time.time() - t1))
 
     # visualize the graph
-    nodes = graph.get_nodes().values()
-
-    for n in nodes:
-        graph.plot_a_node_connectivity(n.id)
+    # nodes = graph.get_nodes().values()
+    #
+    # for n in nodes:
+    #     graph.plot_a_node_connectivity(n.id)
 
     # get final cubes
     t1 = time.time()
@@ -654,32 +671,40 @@ def main():
     t1 = time.time()
     final_cubes = get_final_cubes(connections_list, graph)
     print("time to get final cubes: {}".format(time.time() - t1))
-    result = []
     t1 = time.time()
+    unoptimized_cubes_nodes = []
     for item in final_cubes:
-        merged = item[0]
+        merged = item[0].raw_cube
         if len(item) == 1:
-            item.append(merged)
+            item.append(item[0])
         for i in range(1, len(item)):
-            merged = get_cube_intersection(merged, item[i], method='trimesh')
+            merged = get_cube_intersection(merged, item[i].raw_cube, method='trimesh')
             if merged is None:
                 break
         if merged is not None:
-            # we need to append the bounding box of the merged cube to the result
-            # merged is a trimesh object
-            result.append(tools.get_triangle_mesh_from_bounding_box(merged.get_axis_aligned_bounding_box()))
+            result.append(tools.get_triangle_mesh_from_aabb(merged.get_axis_aligned_bounding_box()))
+            # result.append(tools.get_triangle_mesh_from_oriented_bounding_box(merged.get_oriented_bounding_box()))
+            if item[0] == item[1]:
+                # remove the duplicate from item
+                item.pop(1)
+            unoptimized_cubes_nodes.append(item)
 
     print("time to merge final cubes: {}".format(time.time() - t1))
 
-    # set color for each cube in the result
     result.append(graph.pcd)
     for i in range(len(result)):
         result[i].paint_uniform_color([random.random(), random.random(), random.random()])
 
+    # save the graph object
     o3d.visualization.draw_geometries(result)
-
-    # x = 0
+    return result, unoptimized_cubes_nodes
 
 
 if __name__ == "__main__":
-    main()
+    # check if directory unoptimized_cubes exists. if not, create it.
+    if not os.path.exists("./results/unoptimized_cubes/"):
+        os.makedirs("./results/unoptimized_cubes/")
+    unoptimized_cubes, unoptimized_cubes_nodes = get_unoptimized_cubes()
+    custom_cubes = []
+    for i in range(len(unoptimized_cubes_nodes)):
+        custom_cubes.append(CustomCube(unoptimized_cubes[i], unoptimized_cubes_nodes[i]))

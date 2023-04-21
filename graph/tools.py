@@ -1,7 +1,25 @@
 import open3d as o3d
 
 
-def get_triangle_mesh_from_bounding_box(aabb):
+def get_triangle_mesh_from_oriented_bounding_box(aabb):
+    corners = aabb.get_box_points()
+    mesh = o3d.geometry.TriangleMesh()
+    mesh.vertices = o3d.utility.Vector3dVector(corners)
+    faces = [
+        [0, 1, 2], [0, 2, 3],
+        [0, 3, 7], [0, 7, 4],
+        [1, 5, 6], [1, 6, 2],
+        [2, 6, 7], [2, 7, 3],
+        [0, 4, 5], [0, 5, 1],
+        [4, 7, 6], [4, 6, 5],
+    ]
+
+    # Add the faces to the TriangleMesh object
+    mesh.triangles = o3d.utility.Vector3iVector(faces)
+    return mesh
+
+
+def get_triangle_mesh_from_aabb(aabb):
     vertices = []
     for i in range(2):
         for j in range(2):
@@ -15,3 +33,11 @@ def get_triangle_mesh_from_bounding_box(aabb):
     cube_mesh.vertices = o3d.utility.Vector3dVector(vertices)
     cube_mesh.triangles = o3d.utility.Vector3iVector(faces)
     return cube_mesh
+
+
+def save_triangle_mesh(triangle_mesh, file_name):
+    o3d.io.write_triangle_mesh(file_name, triangle_mesh)
+
+
+def load_triangle_mesh(file_name):
+    return o3d.io.read_triangle_mesh(file_name)
