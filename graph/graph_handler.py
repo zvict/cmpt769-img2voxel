@@ -708,3 +708,4 @@ if __name__ == "__main__":
     custom_cubes = []
     for i in range(len(unoptimized_cubes_nodes)):
         custom_cubes.append(CustomCube(unoptimized_cubes[i], unoptimized_cubes_nodes[i]))
+        print("cube {} has {} norms".format(i, len(list(custom_cubes[i].distinct_norms.keys()))))
