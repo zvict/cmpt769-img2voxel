@@ -1,6 +1,6 @@
 import random
 import time
-
+import graph.tools as tools
 import numpy as np
 import open3d as o3d
 from scipy.spatial import KDTree
@@ -260,7 +260,7 @@ class Graph:
         # set the color of pcd points to blue
         destination_pcd.paint_uniform_color([0, 0, 1])
         # get a copy of self.pcd and remove the _pcd points from it
-        o3d.visualization.draw_geometries([self.pcd, line_set, origin_pcd, destination_pcd])
+        # o3d.visualization.draw_geometries([self.pcd, line_set, origin_pcd, destination_pcd])
 
     def prune_a_node_connectivity(self, node_id, threshold=0.1):
         # in this function, we are looking for the nodes that
@@ -665,7 +665,10 @@ def main():
             if merged is None:
                 break
         if merged is not None:
-            result.append(merged)
+            # we need to append the bounding box of the merged cube to the result
+            # merged is a trimesh object
+            result.append(tools.get_triangle_mesh_from_bounding_box(merged.get_axis_aligned_bounding_box()))
+
     print("time to merge final cubes: {}".format(time.time() - t1))
 
     # set color for each cube in the result

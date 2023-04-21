@@ -81,13 +81,13 @@ if __name__ == "__main__":
     normal1 = get_surface_normal_by_depth(depth, K)    #  spend time: 60ms
     normal2, pcl = get_normal_map_by_point_cloud(depth, K)  #  spend time: 90ms
 
-    cv2.imwrite("normal1.png", vis_normal(normal1))
-    cv2.imwrite("normal2.png", vis_normal(normal2))
+    cv2.imwrite("data/normal1.png", vis_normal(normal1))
+    cv2.imwrite("data/normal2.png", vis_normal(normal2))
     # cv2.imwrite("normal1.png", (normal1))
     # cv2.imwrite("normal2.png", (normal2))
 
-    normal1 = cv2.imread("normal1.png")
-    normal2 = cv2.imread("normal2.png")
+    normal1 = cv2.imread("data/normal1.png")
+    normal2 = cv2.imread("data/normal2.png")
 
     print(normal1.shape, normal1.max(), normal1.min())
     print(normal2.shape, normal2.max(), normal2.min())
