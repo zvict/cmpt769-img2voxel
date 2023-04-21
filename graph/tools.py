@@ -41,3 +41,19 @@ def save_triangle_mesh(triangle_mesh, file_name):
 
 def load_triangle_mesh(file_name):
     return o3d.io.read_triangle_mesh(file_name)
+
+
+def visulize_two_triangle_meshes(triangle_mesh1, triangle_mesh2):
+    # Create the first window and add a point cloud
+    # Create a visualizer object
+    vis = o3d.visualization.Visualizer()
+
+    # Add the meshes to the visualizer
+    vis.create_window()
+    for mesh in triangle_mesh1:
+        vis.add_geometry(mesh)
+    for mesh in triangle_mesh2:
+        vis.add_geometry(mesh)
+
+    # Start the visualization loop
+    vis.run()

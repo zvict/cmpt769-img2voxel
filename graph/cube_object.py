@@ -61,15 +61,10 @@ class CustomCube():
         return best_norm
 
     def get_distinct_norms(self):
-        # for each cube we consider only 3 norms. If the cube
-        # has more than 3 norms, we select the 3 norms which are perpendicular to each other
         self.cube_norms = self.get_norms_from_cube_triangle_meshes()
         for n in self.nodes:
             nearest_norm = self.get_nearest_aligned_norm(n)
             self.distinct_norms[n] = nearest_norm
-        if len(self.distinct_norms) <= 3:
-            return
-
         # find the 3 norms which are perpendicular to each other
         keys_to_remove = []
         for key, value in self.distinct_norms.items():

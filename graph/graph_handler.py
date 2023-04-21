@@ -1,3 +1,4 @@
+import copy
 import pickle
 import random
 import time
@@ -702,11 +703,16 @@ def get_unoptimized_cubes():
 
 if __name__ == "__main__":
     # check if directory unoptimized_cubes exists. if not, create it.
-    if not os.path.exists("./results/unoptimized_cubes/"):
-        os.makedirs("./results/unoptimized_cubes/")
     unoptimized_cubes, unoptimized_cubes_nodes = get_unoptimized_cubes()
+    _copy_unoptimized_cubes = copy.deepcopy(unoptimized_cubes)
+    optimized = []
     custom_cubes = []
     for i in range(len(unoptimized_cubes_nodes)):
         custom_cubes.append(CustomCube(unoptimized_cubes[i], unoptimized_cubes_nodes[i]))
         custom_cubes[-1].optimize_orientation()
         print("cube {} has {} norms".format(i, len(list(custom_cubes[i].distinct_norms.keys()))))
+        optimized.append(custom_cubes[i].cube_triangle_meshes)
+
+    optimized.append(unoptimized_cubes[-1])
+
+    tools.visulize_two_triangle_meshes(optimized, _copy_unoptimized_cubes)
