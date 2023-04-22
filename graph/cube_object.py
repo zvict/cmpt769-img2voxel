@@ -2,8 +2,10 @@ import copy
 
 import numpy as np
 import open3d as o3d
-import optimization
+from matplotlib import pyplot as plt
 
+import optimization
+from mpl_toolkits.mplot3d import Axes3D
 
 class CustomCube():
     def __init__(self, cube_triangle_meshes, nodes):
@@ -27,6 +29,20 @@ class CustomCube():
     def get_norms_from_cube_triangle_meshes(self):
         # we will return the norms of all surfaces of the cube
         corners = np.asarray(self.cube_triangle_meshes.vertices)
+        # fig = plt.figure()
+        # ax = fig.add_subplot(111, projection='3d')
+        # x = corners[:, 0]
+        # y = corners[:, 1]
+        # z = corners[:, 2]
+        # ax.scatter(x, y, z)
+        #
+        # # Add the labels
+        # for i in range(len(x)):
+        #     ax.text(x[i], y[i], z[i], f'({x[i]}, {y[i]}, {z[i]})')
+        #
+        # # Show the plot
+        # plt.show()
+
 
         # Define the indices of each face of the cube
         faces = np.array([

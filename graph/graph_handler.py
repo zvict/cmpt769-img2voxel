@@ -716,6 +716,7 @@ if __name__ == "__main__":
         # 2- optimize the size of the cube
         custom_cubes[-1].get_distinct_norms()
 
+
     optimized.append(unoptimized_cubes[-1])
 
     tools.visulize_two_triangle_meshes(optimized, _copy_unoptimized_cubes)

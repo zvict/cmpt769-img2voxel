@@ -1,4 +1,5 @@
 import numpy as np
+from matplotlib import pyplot as plt
 from scipy.optimize import minimize
 
 
@@ -40,7 +41,7 @@ def optimize_cubes_orientations(cube_normals, plane_normals):
     return rotation_matrix(result.x)
 
 
-def optimize_cubes_size(cubes_edge_pairs, planes_areas):
+def optimize_cubes_size(x_planes, y_planes):
     """Optimize the size of the cubes in the list.
 
     Parameters
@@ -52,12 +53,68 @@ def optimize_cubes_size(cubes_edge_pairs, planes_areas):
     We try to find the best size of the cubes that minimize the sum of the difference between the cubes' areas
     and the planes' areas.
     """
-    cubes_edge_pairs = np.array(cubes_edge_pairs)
-    planes_areas = np.array(planes_areas)
 
-    def cost_function(x):
-        return np.sum(np.abs(x[0] * x[1] - planes_areas))
+    def run_optimize(delta, e1e3, e2e4, e1e3_gt, e2e4_gt):
+        res = minimize(
+            area_difference,
+            delta,
+            args=(e1e3, e2e4, e1e3_gt, e2e4_gt),
+        )
+        x_opt = res.x
+        return x_opt
 
-    result = minimize(cost_function, cubes_edge_pairs)
+    def area_difference(delta, e1e3, e2e4, e1e3_gt, e2e4_gt):
+        x_areas = (e1e3 + delta[0]) * (e2e4 + delta[1])
+        y_areas = e1e3_gt * e2e4_gt
+        return np.sum((x_areas - y_areas) ** 2)
 
-    return result.x
+    delta_init = np.array([0.1, 0.1])
+    e1e3 = np.linalg.norm(x_planes[0] - x_planes[1])
+    e2e4 = np.linalg.norm(x_planes[0] - x_planes[2])
+    e1e3_gt = np.linalg.norm(y_planes[0] - y_planes[1])
+    e2e4_gt = np.linalg.norm(y_planes[0] - y_planes[2])
+
+    for i in range(10):
+        delta_optimized = run_optimize(delta_init, e1e3, e2e4, e1e3_gt, e2e4_gt)
+        e1e3 = e1e3 + delta_optimized[0]
+        e2e4 = e2e4 + delta_optimized[1]
+
+    x_e1 = np.linalg.norm(x_planes[0] - x_planes[1])
+    x_e2 = np.linalg.norm(x_planes[0] - x_planes[2])
+    x_u1 = (x_planes[1] - x_planes[0]) / x_e1
+    x_u2 = (x_planes[2] - x_planes[0]) / x_e2
+
+    x_planes[1] = x_planes[0] + e1e3 * x_u1
+    x_planes[2] = x_planes[0] + e2e4 * x_u2
+    x_planes[3] = x_planes[1] + x_planes[2]
+
+    return x_planes
+
+
+def test_optimize_cube_size():
+    x_planes = np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0]])
+    y_planes = np.array([[0, 0, 0], [2, 0, 0], [0, 2, 0], [2, 2, 0]])
+
+    print("*" * 80)
+    x_planes_copy = np.copy(x_planes)
+    x_planes_optimized = optimize_cubes_size(x_planes, y_planes)
+
+    print("x_planes: " + str(x_planes_copy))
+    print("y_planes: " + str(y_planes))
+    print("x_planes_optimized: " + str(x_planes_optimized))
+
+    print("initial area: " + str(np.abs(np.linalg.norm(x_planes_copy[1] - x_planes_copy[0]) * np.linalg.norm(x_planes_copy[2] - x_planes_copy[0]))))
+    print("target area: " + str(np.abs(np.linalg.norm(y_planes[1] - y_planes[0]) * np.linalg.norm(y_planes[2] - y_planes[0]))))
+    print("optimized area:" + str(np.abs(np.linalg.norm(x_planes_optimized[1] - x_planes_optimized[0]) * np.linalg.norm(x_planes_optimized[2] - x_planes_optimized[0]))))
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    ax.scatter(x_planes_copy[:, 0], x_planes_copy[:, 1], x_planes_copy[:, 2], c='r')
+    ax.scatter(y_planes[:, 0], y_planes[:, 1], y_planes[:, 2], c='b')
+    ax.scatter(x_planes_optimized[:, 0], x_planes_optimized[:, 1], x_planes_optimized[:, 2], c='g')
+    for i in range(4):
+        ax.text(x_planes_copy[i, 0], x_planes_copy[i, 1], x_planes_copy[i, 2], f'({x_planes_copy[i, 0]}, {x_planes_copy[i, 1]}, {x_planes_copy[i, 2]})')
+        ax.text(y_planes[i, 0], y_planes[i, 1], y_planes[i, 2], f'({y_planes[i, 0]}, {y_planes[i, 1]}, {y_planes[i, 2]})')
+        ax.text(x_planes_optimized[i, 0], x_planes_optimized[i, 1], x_planes_optimized[i, 2], f'({x_planes_optimized[i, 0]}, {x_planes_optimized[i, 1]}, {x_planes_optimized[i, 2]})')
+    plt.show()
