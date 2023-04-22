@@ -62,6 +62,8 @@ class CustomCube():
 
     def get_distinct_norms(self):
         self.cube_norms = self.get_norms_from_cube_triangle_meshes()
+        # clear self.distinct_norms dict
+        self.distinct_norms = {}
         for n in self.nodes:
             nearest_norm = self.get_nearest_aligned_norm(n)
             self.distinct_norms[n] = nearest_norm
