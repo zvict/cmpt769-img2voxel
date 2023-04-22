@@ -715,6 +715,7 @@ if __name__ == "__main__":
 
         # 2- optimize the size of the cube
         custom_cubes[-1].get_distinct_norms()
+        custom_cubes[-1].optimize_size()
 
 
     optimized.append(unoptimized_cubes[-1])
