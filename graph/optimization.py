@@ -46,9 +46,9 @@ def optimize_cubes_size(x_planes, y_planes):
 
     Parameters
     ----------
-    cubes_edge_pairs : list numpy.ndarray of shape (2, 3)
+    x_planes: cubes_edge_pairs : list numpy.ndarray of shape (2, 3)
         List of cubes' edge pairs.
-    planes_areas : list float
+    y_planes: planes_areas : list float
         List of planes' areas.
     We try to find the best size of the cubes that minimize the sum of the difference between the cubes' areas
     and the planes' areas.
@@ -69,23 +69,23 @@ def optimize_cubes_size(x_planes, y_planes):
         return np.sum((x_areas - y_areas) ** 2)
 
     delta_init = np.array([0.1, 0.1])
-    e1e3 = np.linalg.norm(x_planes[0] - x_planes[1])
-    e2e4 = np.linalg.norm(x_planes[0] - x_planes[2])
-    e1e3_gt = np.linalg.norm(y_planes[0] - y_planes[1])
-    e2e4_gt = np.linalg.norm(y_planes[0] - y_planes[2])
+    _e1e3 = np.linalg.norm(x_planes[0] - x_planes[1])
+    _e2e4 = np.linalg.norm(x_planes[0] - x_planes[2])
+    _e1e3_gt = np.linalg.norm(y_planes[0] - y_planes[1])
+    _e2e4_gt = np.linalg.norm(y_planes[0] - y_planes[2])
 
     for i in range(10):
-        delta_optimized = run_optimize(delta_init, e1e3, e2e4, e1e3_gt, e2e4_gt)
-        e1e3 = e1e3 + delta_optimized[0]
-        e2e4 = e2e4 + delta_optimized[1]
+        delta_optimized = run_optimize(delta_init, _e1e3, _e2e4, _e1e3_gt, _e2e4_gt)
+        _e1e3 = _e1e3 + delta_optimized[0]
+        _e2e4 = _e2e4 + delta_optimized[1]
 
     x_e1 = np.linalg.norm(x_planes[0] - x_planes[1])
     x_e2 = np.linalg.norm(x_planes[0] - x_planes[2])
     x_u1 = (x_planes[1] - x_planes[0]) / x_e1
     x_u2 = (x_planes[2] - x_planes[0]) / x_e2
 
-    x_planes[1] = x_planes[0] + e1e3 * x_u1
-    x_planes[2] = x_planes[0] + e2e4 * x_u2
+    x_planes[1] = x_planes[0] + _e1e3 * x_u1
+    x_planes[2] = x_planes[0] + _e2e4 * x_u2
     x_planes[3] = x_planes[1] + x_planes[2]
 
     return x_planes
