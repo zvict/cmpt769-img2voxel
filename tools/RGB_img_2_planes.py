@@ -13,7 +13,7 @@ from depth2normal import get_surface_normal_by_depth, get_normal_map_by_point_cl
 from main import *
 from tools.point2plane import *
 
-MIN_PTS_IN_CLUSTER = 700
+MIN_PTS_IN_CLUSTER = 400
 NORMAL_EST_RADIUS = 100
 NORMAL_EST_KNN = 300
 NORMAL_EST_SCALE = 10000
@@ -115,7 +115,7 @@ def sk_spectral_clustering(feat, n_clusters=2):
     return labels
 
 
-def get_all_planes(depth_path="../data/NYU-Depth/cafe.png", normal_path="../seg_cafe_sigma_6.png"):
+def get_all_planes(depth_path="../data/NYU-Depth/basement.png", normal_path="../seg_basement_sigma_6.png"):
     image_name = depth_path[depth_path.rfind("/") + 1: depth_path.rfind(".")]
     if os.path.exists(os.path.join('../data/Clusters/', "{}_all_clusters.pth".format(image_name))):
         all_clusters = torch.load(os.path.join('../data/Clusters/', "{}_all_clusters.pth".format(image_name)))
