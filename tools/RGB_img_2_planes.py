@@ -115,12 +115,15 @@ def sk_spectral_clustering(feat, n_clusters=2):
     return labels
 
 
-def get_all_planes(depth_path="../data/NYU-Depth/bookstore.png", normal_path="../seg_bookstore_sigma_4.png"):
-    # if os.path.exists(os.path.join('../', "all_clusters.pth")):
-    #     all_clusters = torch.load(os.path.join('../', "all_clusters.pth"))
-    #     return all_clusters
-    
+def get_all_planes(depth_path="../data/NYU-Depth/15.png", normal_path="../seg-nyu15-normal1-sigma6.png"):
+    image_name = depth_path[depth_path.rfind("/") + 1: depth_path.rfind(".")]
+    if os.path.exists(os.path.join('../data/Clusters/', "{}_all_clusters.pth".format(image_name))):
+        all_clusters = torch.load(os.path.join('../data/Clusters/', "{}_all_clusters.pth".format(image_name)))
+        return all_clusters
+
     depth = iio.imread(depth_path)
+    depth = from_8uc1_to_16uc1(depth)
+    depth = scale_depth(depth, scale_factor=255.0)
     normal = iio.imread(normal_path)
 
     H, W, C = normal.shape
@@ -291,7 +294,7 @@ def get_all_planes(depth_path="../data/NYU-Depth/bookstore.png", normal_path="..
     visualize_pcl(new_pcl)
     all_clusters['length_max'] = new_pcl.get_axis_aligned_bounding_box().get_extent().max()
     # finding the longest edge of the bounding box
-    torch.save(all_clusters, os.path.join('../', "all_clusters.pth"))
+    torch.save(all_clusters, os.path.join('../data/Clusters', "{}_all_clusters.pth".format(image_name)))
     return all_clusters
 
 
