@@ -698,13 +698,14 @@ def get_unoptimized_cubes():
         result[i].paint_uniform_color([random.random(), random.random(), random.random()])
 
     # save the graph object
-    o3d.visualization.draw_geometries(result)
-    return result, unoptimized_cubes_nodes
+    # o3d.visualization.draw_geometries(result)
+    return result, unoptimized_cubes_nodes, graph.pcd
 
 
 if __name__ == "__main__":
     # check if directory unoptimized_cubes exists. if not, create it.
-    unoptimized_cubes, unoptimized_cubes_nodes = get_unoptimized_cubes()
+    unoptimized_cubes, unoptimized_cubes_nodes, pcd = get_unoptimized_cubes()
+    o3d.visualization.draw_geometries([pcd])
     _copy_unoptimized_cubes = copy.deepcopy(unoptimized_cubes)
     optimized = []
     custom_cubes = []
@@ -718,7 +719,6 @@ if __name__ == "__main__":
         # custom_cubes[-1].get_distinct_norms()
         # custom_cubes[-1].optimize_size()
 
-    # optimized.append(unoptimized_cubes[-1])
-
+    optimized.append(pcd)
     tools.visulize_two_triangle_meshes(optimized, optimized)
-    tools.visulize_two_triangle_meshes(unoptimized_cubes, unoptimized_cubes)
+    tools.visulize_two_triangle_meshes(_copy_unoptimized_cubes, _copy_unoptimized_cubes)
