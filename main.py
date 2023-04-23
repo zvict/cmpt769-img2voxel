@@ -274,7 +274,8 @@ if __name__ == '__main__':
     # img_id = '0022'
     # depth_dir = 'SI_R20_lowres'
     # rgb_dir = 'RGB_lowres'
-    img_id = '15'
+    img_id = 'basement'
+    sigma = 8
     depth_dir = 'NYU-Depth'
     rgb_dir = 'NYU-RGB'
 
@@ -341,7 +342,7 @@ if __name__ == '__main__':
     # query = normal1 / 255.
     # show_image(query)
 
-    query = skimage.filters.gaussian(query, sigma=6)
+    query = skimage.filters.gaussian(query, sigma=sigma)
     # show_image(query)
 
     # # seg = scikit_mean_shift(img)
@@ -350,7 +351,7 @@ if __name__ == '__main__':
     seg = (seg * 255).astype(np.uint8)
     show_image(seg)
     print(seg.shape, seg.dtype)
-    iio.imwrite('seg-nyu15-normal1-sigma6.png', seg)
+    iio.imwrite("seg_{}_sigma_{}.png".format(img_id, sigma), seg)
 
     # segs = []
     # for sigma in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]:

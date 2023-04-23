@@ -115,10 +115,10 @@ def sk_spectral_clustering(feat, n_clusters=2):
     return labels
 
 
-def get_all_planes(depth_path="../data/NYU-Depth/15.png", normal_path="../data/seg-nyu15-normal1-sigma6.png"):
-    if os.path.exists(os.path.join('../', "all_clusters.pth")):
-        all_clusters = torch.load(os.path.join('../', "all_clusters.pth"))
-        return all_clusters
+def get_all_planes(depth_path="../data/NYU-Depth/bookstore.png", normal_path="../seg_bookstore_sigma_4.png"):
+    # if os.path.exists(os.path.join('../', "all_clusters.pth")):
+    #     all_clusters = torch.load(os.path.join('../', "all_clusters.pth"))
+    #     return all_clusters
     
     depth = iio.imread(depth_path)
     normal = iio.imread(normal_path)
@@ -137,7 +137,7 @@ def get_all_planes(depth_path="../data/NYU-Depth/15.png", normal_path="../data/s
     # pcl.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
     points = np.asarray(pcl.points) * NORMAL_EST_SCALE
     colors = np.asarray(pcl.colors)
-    print(points.shape, points.min(), points.max())
+    # print(points.shape, points.min(), points.max())
 
     axis_dirs = np.array([[0, 0, 1], [0, 1, 0], [1, 0, 0]]).astype(np.float32)
 

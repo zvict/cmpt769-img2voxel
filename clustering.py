@@ -116,8 +116,10 @@ def sk_spectral_clustering(feat, n_clusters=2):
     return labels
 
 
-depth = iio.imread("./data/NYU-Depth/15.png")
-normal = iio.imread("data/seg-nyu15-normal1-sigma6.png")
+depth = iio.imread("./data/NYU-Depth/bookstore.png")
+normal = iio.imread("seg_bookstore_sigma_4.png")
+print("depth: ", depth.shape)
+print("normal: ", normal.shape)
 # show_image(normal)
 # show_image(depth)
 # exit(0)
