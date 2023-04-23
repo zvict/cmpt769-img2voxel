@@ -17,7 +17,7 @@ from point2plane import *
 MIN_PTS_IN_CLUSTER = 500
 NORMAL_EST_RADIUS = 100
 NORMAL_EST_KNN = 300
-NORMAL_EST_SCALE = 10000
+NORMAL_EST_SCALE = 1
 
 
 def filter_out_small_clusters(cur_points, cur_labels, min_pts=MIN_PTS_IN_CLUSTER):
@@ -116,8 +116,13 @@ def sk_spectral_clustering(feat, n_clusters=2):
     return labels
 
 
-depth = iio.imread("./data/NYU-Depth/bookstore.png")
-normal = iio.imread("seg_bookstore_sigma_4.png")
+# depth = iio.imread("./data/NYU-Depth/bookstore.png")
+depth = iio.imread("./data/NYU-Depth/basement.png")
+depth = from_8uc1_to_16uc1(depth)
+depth = scale_depth(depth, scale_factor=255.0)
+
+normal = iio.imread("seg_basement_sigma_6.png")
+# normal = iio.imread("seg_bookstore_sigma_4.png")
 print("depth: ", depth.shape)
 print("normal: ", normal.shape)
 # show_image(normal)
@@ -135,6 +140,9 @@ mask = (normal == normal_dirs[0]).all(axis=-1)
 
 pcl = colored_pcl_from_depth(depth, normal)
 aabb = pcl.get_axis_aligned_bounding_box()
+
+visualize_pcl(pcl)
+
 # pcl.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
 points = np.asarray(pcl.points) * NORMAL_EST_SCALE
 colors = np.asarray(pcl.colors)
@@ -151,7 +159,9 @@ all_normals = []
 label_cnt = 0
 for i, dir in enumerate(normal_dirs):
     print("---cur normal dir: ", dir)
+    # print("cur normal dir: ", dir, "")
     cur_mask = (normal == dir).all(axis=-1).reshape(-1)
+    print("cur_mask: ", cur_mask.shape, cur_mask.sum())
     cur_points = points[cur_mask, :]
     print(cur_points.shape)
 
@@ -161,7 +171,7 @@ for i, dir in enumerate(normal_dirs):
     cur_labels = sk_dbscan(cur_points, eps=0.1, min_samples=10)
     print("cur_labels: ", cur_labels.shape)
 
-    cur_points, cur_labels = filter_out_small_clusters(cur_points, cur_labels, MIN_PTS_IN_CLUSTER)
+    # cur_points, cur_labels = filter_out_small_clusters(cur_points, cur_labels, MIN_PTS_IN_CLUSTER)
 
     # Step 2: clustering by the depth of the point cloud in the estimated normal direction
     cur_pcl = o3d.geometry.PointCloud()
@@ -186,7 +196,7 @@ for i, dir in enumerate(normal_dirs):
     # cur_labels = sk_dbscan(cur_query, eps=0.1, min_samples=10)
     print("cur_labels: ", cur_labels.shape)
 
-    cur_points, cur_labels = filter_out_small_clusters(cur_points, cur_labels, MIN_PTS_IN_CLUSTER)
+    # cur_points, cur_labels = filter_out_small_clusters(cur_points, cur_labels, MIN_PTS_IN_CLUSTER)////
 
     # Step 3: for each cluster, do clustering with dbscan
     cur_label_cnt = 0
@@ -197,7 +207,7 @@ for i, dir in enumerate(normal_dirs):
         cur_cluster = cur_points[cur_mask, :]
         cur_cluster_labels = sk_dbscan(cur_cluster, eps=0.1, min_samples=10)
 
-        cur_cluster, cur_cluster_labels = filter_out_small_clusters(cur_cluster, cur_cluster_labels, MIN_PTS_IN_CLUSTER)
+        # cur_cluster, cur_cluster_labels = filter_out_small_clusters(cur_cluster, cur_cluster_labels, MIN_PTS_IN_CLUSTER)
 
         cur_cluster_labels = cur_cluster_labels + cur_label_cnt
         new_points.append(cur_cluster)

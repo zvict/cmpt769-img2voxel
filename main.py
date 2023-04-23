@@ -17,8 +17,8 @@ from utils import *
 
 FX_DEPTH = 5.8262448167737955e+02
 FY_DEPTH = 5.8269103270988637e+02
-CX_DEPTH = 3.1304475870804731e+02
-CY_DEPTH = 2.3844389626620386e+02
+CX_DEPTH = 3.1304475870804731e+02 / 2
+CY_DEPTH = 2.3844389626620386e+02 / 2
 
 
 def show_image(img):
@@ -274,8 +274,8 @@ if __name__ == '__main__':
     # img_id = '0022'
     # depth_dir = 'SI_R20_lowres'
     # rgb_dir = 'RGB_lowres'
-    img_id = 'basement'
-    sigma = 8
+    img_id = 'basement_lowres'
+    sigma = 4
     depth_dir = 'NYU-Depth'
     rgb_dir = 'NYU-RGB'
 
@@ -300,14 +300,15 @@ if __name__ == '__main__':
     depth = scale_depth(depth, scale_factor=255.0)
     show_image(depth)
 
-    # pcl = pcl_from_depth(depth)
+    pcl = pcl_from_depth(depth)
     # pcl = colored_pcl_from_depth(depth, img)
-    # # pcl = pcl_from_depth2(depth)
-    # visualize_pcl(pcl)
+    # pcl = pcl_from_depth2(depth)
+    visualize_pcl(pcl)
     # o3d_pcl_plane_seg(pcl)
     # o3d_pcl_multi_plane_seg(pcl, num_plane=5, thr=0.002)
 
     K = np.array([[FX_DEPTH, 0, CX_DEPTH], [0, FY_DEPTH, CY_DEPTH], [0, 0, 1]])
+    # K = np.array([[FX_DEPTH, 0, CX_DEPTH/2], [0, FY_DEPTH, CY_DEPTH/2], [0, 0, 1]])
     # K = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
     normal1 = get_surface_normal_by_depth(depth, K)
     # normal1 = get_surface_normal_by_depth(depth)

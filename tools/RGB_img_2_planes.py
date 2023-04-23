@@ -13,10 +13,10 @@ from depth2normal import get_surface_normal_by_depth, get_normal_map_by_point_cl
 from main import *
 from tools.point2plane import *
 
-MIN_PTS_IN_CLUSTER = 500
+MIN_PTS_IN_CLUSTER = 0
 NORMAL_EST_RADIUS = 100
 NORMAL_EST_KNN = 300
-NORMAL_EST_SCALE = 10000
+NORMAL_EST_SCALE = 1
 
 
 def filter_out_small_clusters(cur_points, cur_labels, min_pts=MIN_PTS_IN_CLUSTER):
@@ -121,6 +121,9 @@ def get_all_planes(depth_path="../data/NYU-Depth/bookstore.png", normal_path="..
     #     return all_clusters
     
     depth = iio.imread(depth_path)
+    depth = from_8uc1_to_16uc1(depth)
+    depth = scale_depth(depth, scale_factor=255.0)
+
     normal = iio.imread(normal_path)
 
     H, W, C = normal.shape
