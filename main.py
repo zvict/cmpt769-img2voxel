@@ -274,8 +274,8 @@ if __name__ == '__main__':
     # img_id = '0022'
     # depth_dir = 'SI_R20_lowres'
     # rgb_dir = 'RGB_lowres'
-    img_id = 'basement'
-    sigma = 8
+    img_id = 'bathroom'
+    sigma = 6
     depth_dir = 'NYU-Depth'
     rgb_dir = 'NYU-RGB'
 
