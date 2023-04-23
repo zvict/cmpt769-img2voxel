@@ -54,31 +54,37 @@ def optimize_cubes_size(x_planes, y_planes):
     and the planes' areas.
     """
 
-    def run_optimize(delta, e1e3, e2e4, e1e3_gt, e2e4_gt):
+    def run_optimize(delta, inp_dict, gt):
         res = minimize(
             area_difference,
             delta,
-            args=(e1e3, e2e4, e1e3_gt, e2e4_gt),
+            args=(inp_dict, gt),
         )
         x_opt = res.x
         return x_opt
 
-    def area_difference(delta, e1e3, e2e4, e1e3_gt, e2e4_gt):
-        delta = delta.reshape(-1, 2)
-        x_areas = (e1e3 + delta[:, 0]) * (e2e4 + delta[:, 1])
-        y_areas = e1e3_gt * e2e4_gt
-        return np.sum((x_areas - y_areas) ** 2)
+    def area_difference(delta, inp_dict, gt):
+        error = 0
+        for key, value in inp_dict.items():
+            idx_1 = int(key[1])
+            idx_2 = int(key[3])
+            if len(value) > 1:
+                for i in range(len(value)):
+                    error += (((value[i][0] + delta[idx_1]) * (value[i][1] + delta[idx_2]) - gt[key][i][0] * gt[key][i][1]) ** 2) * (1.0 / len(value))
+            else:
+                error += (value[0][0] * value[0][1] - gt[key][0][0] * gt[key][0][1]) ** 2
+        return error
 
-    delta_init = np.ones((x_planes.shape[0], 2)) * 0.1  # (n, 2), n is the number of cubes, delta[:, 0] is e1e3, delta[:, 1] is e2e4
-    _e1e3 = np.linalg.norm(x_planes[:, 0] - x_planes[:, 1], axis=1)  # 1 x n
-    _e2e4 = np.linalg.norm(x_planes[:, 0] - x_planes[:, 2], axis=1)  # 1 x n
-    _e1e3_gt = np.linalg.norm(y_planes[:, 0] - y_planes[:, 1], axis=1)
-    _e2e4_gt = np.linalg.norm(y_planes[:, 0] - y_planes[:, 2], axis=1)
+    delta_init = np.ones(3) * 0.1  # (n, 2), n is the number of cubes, delta[:, 0] is e1e3, delta[:, 1] is e2e4
 
     for i in range(10):
-        delta_optimized = run_optimize(delta_init, _e1e3, _e2e4, _e1e3_gt, _e2e4_gt).reshape(-1, 2)
-        _e1e3 = _e1e3 + delta_optimized[:, 0]
-        _e2e4 = _e2e4 + delta_optimized[:, 1]
+        delta_optimized = run_optimize(delta_init, inp_dict=x_planes, gt=y_planes)
+        for key, value in x_planes.items():
+            idx_1 = int(key[1])
+            idx_2 = int(key[3])
+            for j in range(len(value)):
+                value[j][0] += delta_optimized[idx_1]
+                value[j][1] += delta_optimized[idx_2]
 
     # x_e1 = np.linalg.norm(x_planes[:, 0] - x_planes[:, 1], axis=1).reshape(-1, 1)
     # x_e2 = np.linalg.norm(x_planes[:, 0] - x_planes[:, 2], axis=1).reshape(-1, 1)
@@ -90,9 +96,11 @@ def optimize_cubes_size(x_planes, y_planes):
     # x_planes[:, 2] = x_planes[:, 0] + _e2e4 * x_u2
     # x_planes[:, 3] = x_planes[:, 1] + x_planes[:, 2]
 
-    e1e3_e2e4 = np.concatenate((_e1e3.reshape(-1, 1), _e2e4.reshape(-1, 1)), axis=1)
+    output_res = {}
+    for key, value in x_planes.items():
+        output_res[key] = value[0]
 
-    return e1e3_e2e4  # n x 2!
+    return output_res
 
 
 def test_optimize_cube_size():

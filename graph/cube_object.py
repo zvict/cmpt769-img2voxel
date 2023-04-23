@@ -31,6 +31,14 @@ class CustomCube():
 
     def get_norms_from_cube_triangle_meshes(self):
         corners = np.asarray(self.cube_triangle_meshes.vertices)
+        # visualize the corners
+        # fig = plt.figure()
+        # ax = fig.add_subplot(111, projection='3d')
+        # ax.scatter(corners[:, 0], corners[:, 1], corners[:, 2])
+        # for i in range(8):
+        #     ax.text(corners[i, 0], corners[i, 1], corners[i, 2], "({}, {}, {})".format(corners[i, 0], corners[i, 1], corners[i, 2]))
+        # plt.show()
+
         faces = np.array([
             [0, 1, 3, 2],  # bottom
             [0, 2, 6, 4],  # left
@@ -101,20 +109,67 @@ class CustomCube():
         self.cube_triangle_meshes.rotate(rotation_matrix)
 
     def optimize_size(self):
-        cube_corners = []
-        nodes = list(self.distinct_faces.keys())
-        target_corners = []
-        for i in nodes:
-            target_corners.append(get_bb_edges_from_points(i))
-        for i in self.distinct_faces.values():
-            res = []
-            for j in i:
-                res.append(self.cube_triangle_meshes.vertices[j])
-            cube_corners.append(res)
+        d0 = [[0, 4], [2, 6], [1, 5], [3, 7]]
+        d1 = [[0, 2], [4, 6], [1, 3], [5, 7]]
+        d2 = [[0, 1], [2, 3], [4, 5], [6, 7]]
+        input_dict = {}  # keys are d_id_j, values are the corresponding edges length
+        target_dict = {}  # keys are d_id_j, values are the corresponding edges length
+        # we have to create a dictionary of new edges
+        for node, corners in self.distinct_faces.items():
+            edge_1 = ""
+            edge_2 = ""
+            idx_1 = 0
+            idx_2 = 0
+            if [corners[0], corners[1]] in d0:
+                edge_1 = "d0"
+                idx_1 = 0
+            elif [corners[0], corners[1]] in d1:
+                edge_1 = "d1"
+                idx_1 = 1
+            elif [corners[0], corners[1]] in d2:
+                edge_1 = "d2"
+                idx_1 = 2
+            if [corners[0], corners[3]] in d0:
+                edge_2 = "d0"
+                idx_2 = 0
+            elif [corners[0], corners[3]] in d1:
+                edge_2 = "d1"
+                idx_2 = 1
+            elif [corners[0], corners[3]] in d2:
+                edge_2 = "d2"
+                idx_2 = 2
 
-        cube_corners = np.array(cube_corners)
-        target_corners = np.array(target_corners)
-        e1e3_e2e4 = optimization.optimize_cubes_size(x_planes=cube_corners, y_planes=target_corners)
+            c = get_bb_edges_from_points(node)
+            if idx_1 < idx_2:
+                key = edge_1 + edge_2
+                e1 = np.linalg.norm(self.cube_triangle_meshes.vertices[corners[0]] - self.cube_triangle_meshes.vertices[corners[1]])
+                e2 = np.linalg.norm(self.cube_triangle_meshes.vertices[corners[0]] - self.cube_triangle_meshes.vertices[corners[3]])
+                e1_target = np.linalg.norm(c[0] - c[1])
+                e2_target = np.linalg.norm(c[0] - c[3])
+            else:
+                key = edge_2 + edge_1
+                e2 = np.linalg.norm(self.cube_triangle_meshes.vertices[corners[0]] - self.cube_triangle_meshes.vertices[corners[1]])
+                e1 = np.linalg.norm(self.cube_triangle_meshes.vertices[corners[0]] - self.cube_triangle_meshes.vertices[corners[3]])
+                e2_target = np.linalg.norm(c[0] - c[1])
+                e1_target = np.linalg.norm(c[0] - c[3])
+            if key not in input_dict:
+                input_dict[key] = [[e1, e2]]
+                target_dict[key] = [[e1_target, e2_target]]
+            else:
+                input_dict[key].append([e1, e2])
+                target_dict[key].append([e1_target, e2_target])
+
+        output_dict = optimization.optimize_cubes_size(x_planes=input_dict, y_planes=target_dict)
+        result = {}
+        for key, value in output_dict.items():
+            idx_1 = key[0: 2]
+            idx_2 = key[2:]
+            if idx_1 not in result:
+                result[idx_1] = value[0]
+            if idx_2 not in result:
+                result[idx_2] = value[1]
+        # scale the cube
+        cdcdcv = 0
 
 
 def get_bb_edges_from_points(node):
@@ -137,6 +192,7 @@ def get_bb_edges_from_points(node):
     corner_points.append([max_x, min_y, z])
     corner_points.append([min_x, max_y, z])
     corner_points.append([max_x, max_y, z])
+    corner_points = np.array(corner_points)
 
     # Rotate the corner points back to the original coordinate frame
     corner_points = np.linalg.inv(R) @ corner_points.T
