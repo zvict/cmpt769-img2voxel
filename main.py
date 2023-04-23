@@ -274,7 +274,11 @@ if __name__ == '__main__':
     # img_id = '0022'
     # depth_dir = 'SI_R20_lowres'
     # rgb_dir = 'RGB_lowres'
+<<<<<<< HEAD
     img_id = 'basement_lowres'
+=======
+    img_id = 'cafe'
+>>>>>>> 6feaa323ba52d38ec833f120482302d65acd96ba
     sigma = 4
     depth_dir = 'NYU-Depth'
     rgb_dir = 'NYU-RGB'
