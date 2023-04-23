@@ -66,6 +66,7 @@ class Node:
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(projected_points)
         self.bounding_box = pcd.get_axis_aligned_bounding_box()
+        self.bounding_box_corners = None
 
     def __getstate__(self):
         state = self.__dict__.copy()
@@ -717,7 +718,6 @@ if __name__ == "__main__":
         custom_cubes[-1].get_distinct_norms()
         custom_cubes[-1].optimize_size()
 
-
     optimized.append(unoptimized_cubes[-1])
 
-    tools.visulize_two_triangle_meshes(optimized, _copy_unoptimized_cubes)
+    tools.visulize_two_triangle_meshes(optimized, optimized)

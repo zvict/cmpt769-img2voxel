@@ -4,6 +4,7 @@ import numpy as np
 import open3d as o3d
 import cv2
 import os
+import imageio as iio
 from depth2normal import get_surface_normal_by_depth, get_normal_map_by_point_cloud
 from seg import *
 from utils import *
@@ -289,7 +290,7 @@ if __name__ == '__main__':
     img = cv2.imread(os.path.join(img_dir, rgb_dir, img_id + '.jpg'))
     depth = cv2.imread(os.path.join(img_dir, depth_dir, img_id + '.png'), cv2.IMREAD_ANYDEPTH)
     depth = from_8uc1_to_16uc1(depth)
-    normal = iio.imread("seg-nyu15-normal1-sigma6.png")
+    # normal = iio.imread("./data/seg-nyu15-normal1-sigma6.png")
     # cv2.imwrite(os.path.join('15.png'), depth)
 
     # show_image(depth)
@@ -336,20 +337,20 @@ if __name__ == '__main__':
 
     # query = img
     # query = np.stack([depth, depth, depth], axis=-1)
-    # query = normal1
+    query = normal1
     # query = normal1 / 255.
     # show_image(query)
 
-    # query = skimage.filters.gaussian(query, sigma=6)
+    query = skimage.filters.gaussian(query, sigma=6)
     # show_image(query)
 
-    # # # seg = scikit_mean_shift(img)
-    # seg = scikit_mean_shift(query)
-    # # # seg = scikit_mean_shift(np.stack([depth, depth, depth], axis=-1))
-    # seg = (seg * 255).astype(np.uint8)
-    # show_image(seg)
-    # print(seg.shape, seg.dtype)
-    # iio.imwrite('seg-nyu15-normal1-sigma6.png', seg)
+    # # seg = scikit_mean_shift(img)
+    seg = scikit_mean_shift(query)
+    # # seg = scikit_mean_shift(np.stack([depth, depth, depth], axis=-1))
+    seg = (seg * 255).astype(np.uint8)
+    show_image(seg)
+    print(seg.shape, seg.dtype)
+    iio.imwrite('seg-nyu15-normal1-sigma6.png', seg)
 
     # segs = []
     # for sigma in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]:

@@ -169,7 +169,74 @@ class CustomCube():
             if idx_2 not in result:
                 result[idx_2] = value[1]
         # scale the cube
-        cdcdcv = 0
+        self.scale_cube(result)
+
+    def scale_cube(self, scale):
+        # d0 = [[0, 4], [2, 6], [1, 5], [3, 7]]
+        # d1 = [[0, 2], [4, 6], [1, 3], [5, 7]]
+        # d2 = [[0, 1], [2, 3], [4, 5], [6, 7]]
+
+        new_corners = np.zeros((8, 3))
+        old_corners = np.asarray(self.cube_triangle_meshes.vertices)
+        new_corners[0] = old_corners[0]
+
+        # 1
+        u_01 = (old_corners[1] - old_corners[0]) / np.linalg.norm(old_corners[1] - old_corners[0])
+        if 'd2' not in scale or scale['d2'] <= 0:
+            new_corners[1] = old_corners[1]
+        else:
+            new_corners[1] = old_corners[0] + u_01 * scale['d2']
+
+        # 2
+        u_02 = (old_corners[2] - old_corners[0]) / np.linalg.norm(old_corners[2] - old_corners[0])
+        if 'd1' not in scale or scale['d1'] <= 0:
+            new_corners[2] = old_corners[2]
+        else:
+            new_corners[2] = old_corners[0] + u_02 * scale['d1']
+
+        # 3
+        new_corners[3] = new_corners[1] + new_corners[2] - new_corners[0]
+
+        # 4
+        u_04 = (old_corners[4] - old_corners[0]) / np.linalg.norm(old_corners[4] - old_corners[0])
+        if 'd0' not in scale or scale['d0'] <= 0:
+            new_corners[4] = old_corners[4]
+        else:
+            new_corners[4] = old_corners[0] + u_04 * scale['d0']
+
+        # 5
+        new_corners[5] = new_corners[1] + new_corners[4] - new_corners[0]
+
+        # 6
+        new_corners[6] = new_corners[2] + new_corners[4] - new_corners[0]
+
+        # 7
+        new_corners[7] = new_corners[3] + new_corners[4] - new_corners[0]
+
+        copy_cube = copy.deepcopy(self.cube_triangle_meshes)
+        self.cube_triangle_meshes.vertices = o3d.utility.Vector3dVector(new_corners)
+
+        pcd = o3d.geometry.PointCloud()
+        points = []
+        for node in self.distinct_norms.keys():
+            points.append(node.projected_points)
+            points.append(node.bounding_box_corners)
+
+        pcd.points = o3d.utility.Vector3dVector(np.concatenate(points, axis=0))
+        pcd.paint_uniform_color([0.5, 0.5, 0.5])
+        copy_cube.paint_uniform_color([0.5, 0.5, 0.5])
+
+        # o3d.visualization.draw_geometries([self.cube_triangle_meshes, pcd, copy_cube])
+        #
+        # # plot the new coordinates using matplotlib and set the labels for each point as their id
+        # fig = plt.figure()
+        # ax = fig.add_subplot(111, projection='3d')
+        # ax.scatter(new_corners[:, 0], new_corners[:, 1], new_corners[:, 2], c='r', marker='o')
+        # for i, txt in enumerate(range(8)):
+        #     ax.text(new_corners[i, 0], new_corners[i, 1], new_corners[i, 2], txt)
+        # plt.show()
+
+        # visualize the cube
 
 
 def get_bb_edges_from_points(node):
@@ -209,4 +276,5 @@ def get_bb_edges_from_points(node):
     # opt = vis.get_render_option()
     # opt.show_coordinate_frame = True
     # vis.run()
+    node.bounding_box_corners = corner_points
     return corner_points
