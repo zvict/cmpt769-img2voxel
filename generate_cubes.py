@@ -85,7 +85,7 @@ def visualize_pc(clusters):
     visualizer.run()
 
 
-clusters = torch.load("nyu15-all_clusters.pth")
+clusters = torch.load("data/Clusters/nyu15-all_clusters.pth")
 num_pcs = len(clusters['points'])
 print(clusters.keys(), num_pcs)
 

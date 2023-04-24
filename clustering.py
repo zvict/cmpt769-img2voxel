@@ -302,7 +302,7 @@ for v in range(all_labels.min(), all_labels.max() + 1):
     cur_vis_normal.colors = o3d.utility.Vector3dVector(np.array([[1, 0, 0]]))
     vis_normals.append(cur_vis_normal)
 
-torch.save(all_clusters, "nyu15-all_clusters.pth")
+torch.save(all_clusters, "data/Clusters/nyu15-all_clusters.pth")
 
 all_planes = np.concatenate(all_planes, axis=0)
 
